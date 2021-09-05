@@ -355,6 +355,18 @@ const root = {
             ],
             color: '#526BFF',
         },
+        {
+            "_type": "ellipse",
+            cx: 50,
+            cy: 250,
+            rx: 50,
+            ry: 25,
+            color: '#E56D6D',
+            border: {
+                color: '#526BFF',
+                width: 2,
+            },
+        },
     ]
 }
 
@@ -450,6 +462,36 @@ figma.ui.onmessage = msg => {
                 _node.x = node.cx - node.radius
                 _node.y = node.cy - node.radius
                 _node.resize(node.radius * 2, node.radius * 2)
+                if (node.color != null) {
+                    let color = hex2FigmaColor(node.color || '#000')
+                    _node.fills = [
+                        {
+                            type: 'SOLID',
+                            color,
+                        }
+                    ]
+                } else {
+                    _node.fills = [
+                    ]
+                }
+                if (node.border) {
+                    _node.strokes = [
+                        {
+                            type: 'SOLID',
+                            color: hex2FigmaColor(node.border.color || '#000'),
+                        }
+                    ]
+                    _node.strokeWeight = node.border.width || 1
+                }
+                frame.appendChild(_node)
+                return
+            }
+            if (node._type == 'ellipse') {
+                // return createCircle(node)
+                const _node = figma.createEllipse()
+                _node.x = node.cx - node.rx
+                _node.y = node.cy - node.ry
+                _node.resize(node.rx * 2, node.ry * 2)
                 if (node.color != null) {
                     let color = hex2FigmaColor(node.color || '#000')
                     _node.fills = [
