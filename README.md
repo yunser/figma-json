@@ -28,6 +28,11 @@ This repo is using:
 * 由于 Figma 的限制，如果分组的子节点数量为 0，分组本身不会生成。
 
 
+## 未解决的问题
+
+* 无法保证文字在不同平台渲染一致。
+
+
 ## Other
 
 * Due to the limitation of figma, if the number of child nodes of the group is 0, the group itself will not be generated.
