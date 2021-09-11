@@ -74,6 +74,33 @@ function getPolygonSvg(_node) {
 }
 // uiUtil.svgObj2Xml(convertUiObj2SvgObject(this.root))
 
+function getPathSvg(_node) {
+    let _attr: any = {}
+    let attrs = _node
+    if (attrs.color) {
+        _attr.fill = attrs.color
+    } else {
+        _attr.fill = 'none'
+    }
+    if (attrs.border) {
+        _attr.stroke = attrs.border.color
+        _attr['stroke-width'] = attrs.border.width || 1
+    }
+    if (attrs.d) {
+        _attr['d'] = attrs.d
+    }
+    // if (attrs.radius) {
+    //     _attr.rx = attrs.radius
+    //     _attr.ry = attrs.radius
+    // }
+    let node: any = {
+        type: 'path',
+        attr: _attr,
+        // _attrs: attrs,
+    }
+    return node
+}
+
 function getPolylinSvg(_node) {
     let _attr: any = {}
     let attrs = _node
@@ -370,6 +397,32 @@ const root = {
             },
         },
         {
+            "_type": "group",
+            _children: [
+                {
+                    "_type": "ellipse",
+                    cx: 50,
+                    cy: 250,
+                    rx: 50,
+                    ry: 25,
+                    color: '#E56D6D',
+                    border: {
+                        color: '#526BFF',
+                        width: 2,
+                    },
+                },
+                {
+                    "_type": "path",
+                    d: 'M200,200.490196 L199.509804,300 C212.323108,269.060446 229.153174,253.590669 250,253.590669 C270.846826,253.590669 287.513493,268.897047 300,299.509804 L300,200 L200,200.490196 Z',
+                    color: '#E56D6D',
+                    border: {
+                        color: '#526BFF',
+                        width: 2,
+                    },
+                },
+            ],
+        },
+        {
             _type: 'image',
             x: 300,
             y: 0,
@@ -395,8 +448,11 @@ figma.ui.onmessage = msg => {
         child.remove()
     })
 
-    const nodes: SceneNode[] = [];
+    // const nodes: SceneNode[] = [];
 
+    if (msg.type === 'cancel') {
+        figma.closePlugin();
+    }
     if (msg.type === 'create-rectangles') {
         const frame = figma.createFrame()
         frame.x = 0
@@ -410,252 +466,277 @@ figma.ui.onmessage = msg => {
             }
         ]
 
-        root._children.forEach(node => {
-            if (node._type == 'root') {
-                // return createArtboard(node)
-                return
-            }
-            if (node._type == 'rect') {
-                // return createRect(node)
-                const _node = figma.createRectangle();
-                _node.x = node.x
-                _node.y = node.y
-                _node.resize(node.width, node.height)
-                console.log('rect', _node)
-                // rect.width = 100
-                // rect.height = 100
-                if (node.color != null) {
-                    let color = hex2FigmaColor(node.color || '#000')
-                    _node.fills = [
-                        {
-                            type: 'SOLID',
-                            color,
-                        }
-                    ]
-                } else {
-                    _node.fills = [
-                    ]
-                }
-                if (node.border) {
-                    _node.strokes = [
-                        {
-                            type: 'SOLID',
-                            color: hex2FigmaColor(node.border.color || '#000'),
-                        }
-                    ]
-                    _node.strokeWeight = node.border.width || 1
-                }
-
-
-                frame.appendChild(_node)
-
-                // figma.currentPage.appendChild(rect);
-                // nodes.push(rect);
-                return
-            }
-            if (node._type == 'image') {
-                // return createRect(node)
-                let imageHash = figma.createImage(toUint8Array(node.href.replace(/^data:image\/(png|jpg);base64,/, ""))).hash
-                const _node = figma.createRectangle()
-                
-                _node.x = node.x
-                _node.y = node.y
-                _node.resize(node.width, node.height)
-                console.log('rect', _node)
-                // rect.width = 100
-                // rect.height = 100
-                _node.fills = [
-                    { type: "IMAGE", scaleMode: "FIT", imageHash }
-                ]
-                // if (node.color != null) {
-                //     let color = hex2FigmaColor(node.color || '#000')
-                //     // _node.fills = [
-                //     //     {
-                //     //         type: 'SOLID',
-                //     //         color,
-                //     //     }
-                //     // ]
-                // } else {
-                //     // _node.fills = [
-                //     // ]
-                // }
-                // if (node.border) {
-                //     // _node.strokes = [
-                //     //     {
-                //     //         type: 'SOLID',
-                //     //         color: hex2FigmaColor(node.border.color || '#000'),
-                //     //     }
-                //     // ]
-                //     // _node.strokeWeight = node.border.width || 1
-                // }
-
-
-                frame.appendChild(_node)
-
-                // figma.currentPage.appendChild(rect);
-                // nodes.push(rect);
-                return
-            }
-            if (node._type == 'polygon') {
-                let svg = uiUtil.svgObj2Xml(getPolygonSvg(node))
-                const _node = figma.createNodeFromSvg(svg)
-                frame.appendChild(_node)
-                return
-            }
-            if (node._type == 'polyline') {
-                let svg = uiUtil.svgObj2Xml(getPolylinSvg(node))
-                const _node = figma.createNodeFromSvg(svg)
-                frame.appendChild(_node)
-                return
-            }
+        // root._children.forEach(node => {
             
-            if (node._type == 'circle') {
-                // return createCircle(node)
-                const _node = figma.createEllipse()
-                _node.x = node.cx - node.radius
-                _node.y = node.cy - node.radius
-                _node.resize(node.radius * 2, node.radius * 2)
-                if (node.color != null) {
-                    let color = hex2FigmaColor(node.color || '#000')
-                    _node.fills = [
-                        {
-                            type: 'SOLID',
-                            color,
-                        }
-                    ]
-                } else {
-                    _node.fills = [
-                    ]
-                }
-                if (node.border) {
-                    _node.strokes = [
-                        {
-                            type: 'SOLID',
-                            color: hex2FigmaColor(node.border.color || '#000'),
-                        }
-                    ]
-                    _node.strokeWeight = node.border.width || 1
-                }
-                frame.appendChild(_node)
-                return
-            }
-            if (node._type == 'ellipse') {
-                // return createCircle(node)
-                const _node = figma.createEllipse()
-                _node.x = node.cx - node.rx
-                _node.y = node.cy - node.ry
-                _node.resize(node.rx * 2, node.ry * 2)
-                if (node.color != null) {
-                    let color = hex2FigmaColor(node.color || '#000')
-                    _node.fills = [
-                        {
-                            type: 'SOLID',
-                            color,
-                        }
-                    ]
-                } else {
-                    _node.fills = [
-                    ]
-                }
-                if (node.border) {
-                    _node.strokes = [
-                        {
-                            type: 'SOLID',
-                            color: hex2FigmaColor(node.border.color || '#000'),
-                        }
-                    ]
-                    _node.strokeWeight = node.border.width || 1
-                }
-                frame.appendChild(_node)
-                return
-            }
-            if (node._type == 'text') {
-                // return createText(node)
-                figma.loadFontAsync({ family: "Roboto", style: "Regular" })
-                    .then(() => {
-                        let _node = figma.createText()
-                        _node.x = node.x
-                        _node.y = node.y
-                        _node.fontSize = node.textSize
-                        // text.lineHeight = node.textSize
-                        _node.characters = node.text
-                        if (node.color != null) {
-                            let color = hex2FigmaColor(node.color || '#000')
-                            _node.fills = [
-                                {
-                                    type: 'SOLID',
-                                    color,
-                                }
-                            ]
-                        } else {
-                            _node.fills = [
-                            ]
-                        }
-                        if (node.border) {
-                            _node.strokes = [
-                                {
-                                    type: 'SOLID',
-                                    color: hex2FigmaColor(node.border.color || '#000'),
-                                }
-                            ]
-                            _node.strokeWeight = node.border.width || 1
-                        }
-                        _node.setRangeLineHeight(0, node.text.length, { value: node.textSize, unit: 'PIXELS' })
-                        frame.appendChild(_node)
-
-                    })
-                // text.fontName = 'Roboto'
-                return
-            }
-            if (node._type == 'line') {
-                // return createLine(node)
-                let left = Math.min(node.x1, node.x2)
-                let top = Math.min(node.y1, node.y2)
-                let width = Math.abs(node.x1 - node.x2)
-                let height = Math.abs(node.y1 - node.y2)
-                let right = Math.max(node.x1, node.x2)
-                let bottom = Math.max(node.y1, node.y2)
-
-                const _node = figma.createLine()
-                _node.x = left
-                _node.y = top
-                const length = Math.sqrt(width * width + height * height)
-                _node.resize(length, 0)
-                _node.rotation = getFigmaRotation(node)
-
-                let color = hex2FigmaColor(node.color || '#000')
-                _node.strokes = [
-                    {
-                        type: 'SOLID',
-                        color,
-                    }
-                ]
-                // if (node.color != null) {
-                // } else {
-                //     _node.strokes = [
-                //     ]
-                // }
-                // line.resize(width, height)
-                // line.
-
-                frame.appendChild(_node)
-                return
-            }
-            throw new Error(`unknown type ${node._type}`)
-        })
-
-        // const firstLayer = uiUtil.treeMap(root, {
-        //     childrenKey: '_children',
-        //     childrenSetKey: 'layers',
-        //     nodeHandler(node) {
-        //         // return {
-        //         //     type: 'unknown'
-        //         // }
-        //     }
         // })
 
+        uiUtil.treeMap(root, {
+            childrenKey: '_children',
+            childrenSetKey: 'layers',
+            nodeHandler(node, { children }) {
+                if (node._type == 'root') {
+                    // return createArtboard(node)
+                    return {}
+                }
+                if (node._type == 'rect') {
+                    // return createRect(node)
+                    const _node = figma.createRectangle();
+                    _node.x = node.x
+                    _node.y = node.y
+                    _node.resize(node.width, node.height)
+                    console.log('rect', _node)
+                    // rect.width = 100
+                    // rect.height = 100
+                    if (node.color != null) {
+                        let color = hex2FigmaColor(node.color || '#000')
+                        _node.fills = [
+                            {
+                                type: 'SOLID',
+                                color,
+                            }
+                        ]
+                    } else {
+                        _node.fills = [
+                        ]
+                    }
+                    if (node.border) {
+                        _node.strokes = [
+                            {
+                                type: 'SOLID',
+                                color: hex2FigmaColor(node.border.color || '#000'),
+                            }
+                        ]
+                        _node.strokeWeight = node.border.width || 1
+                    }
 
 
+                    frame.appendChild(_node)
+
+                    // figma.currentPage.appendChild(rect);
+                    // nodes.push(rect);
+                    return { _node }
+                }
+                if (node._type == 'image') {
+                    // return createRect(node)
+                    let imageHash = figma.createImage(toUint8Array(node.href.replace(/^data:image\/(png|jpg);base64,/, ""))).hash
+                    const _node = figma.createRectangle()
+
+                    _node.x = node.x
+                    _node.y = node.y
+                    _node.resize(node.width, node.height)
+                    console.log('rect', _node)
+                    // rect.width = 100
+                    // rect.height = 100
+                    _node.fills = [
+                        { type: "IMAGE", scaleMode: "FIT", imageHash }
+                    ]
+                    // if (node.color != null) {
+                    //     let color = hex2FigmaColor(node.color || '#000')
+                    //     // _node.fills = [
+                    //     //     {
+                    //     //         type: 'SOLID',
+                    //     //         color,
+                    //     //     }
+                    //     // ]
+                    // } else {
+                    //     // _node.fills = [
+                    //     // ]
+                    // }
+                    // if (node.border) {
+                    //     // _node.strokes = [
+                    //     //     {
+                    //     //         type: 'SOLID',
+                    //     //         color: hex2FigmaColor(node.border.color || '#000'),
+                    //     //     }
+                    //     // ]
+                    //     // _node.strokeWeight = node.border.width || 1
+                    // }
+
+
+                    frame.appendChild(_node)
+
+                    // figma.currentPage.appendChild(rect);
+                    // nodes.push(rect);
+                    return { _node }
+                }
+                if (node._type == 'group') {
+                    console.log('group', node, children)
+                    // throw new Error('??')
+                    const _node = figma.group(children.map(item => item._node), frame)
+                    // let svg = uiUtil.svgObj2Xml(getPolygonSvg(node))
+                    // const _node = figma.createNodeFromSvg(svg)
+                    frame.appendChild(_node)
+
+
+                    return { _node }
+                }
+                if (node._type == 'polygon') {
+                    let svg = uiUtil.svgObj2Xml(getPolygonSvg(node))
+                    const _node = figma.createNodeFromSvg(svg)
+                    frame.appendChild(_node)
+                    return { _node }
+                }
+                if (node._type == 'path') {
+                    let svg = uiUtil.svgObj2Xml(getPathSvg(node))
+                    console.log('psvg', svg)
+                    const _node = figma.createNodeFromSvg(svg)
+                    frame.appendChild(_node)
+                    return { _node }
+                }
+                if (node._type == 'path') {
+                    let svg = uiUtil.svgObj2Xml(getPolygonSvg(node))
+                    const _node = figma.createNodeFromSvg(svg)
+                    frame.appendChild(_node)
+                    return { _node }
+                }
+                if (node._type == 'polyline') {
+                    let svg = uiUtil.svgObj2Xml(getPolylinSvg(node))
+                    const _node = figma.createNodeFromSvg(svg)
+                    frame.appendChild(_node)
+                    return { _node }
+                }
+
+                if (node._type == 'circle') {
+                    // return createCircle(node)
+                    const _node = figma.createEllipse()
+                    _node.x = node.cx - node.radius
+                    _node.y = node.cy - node.radius
+                    _node.resize(node.radius * 2, node.radius * 2)
+                    if (node.color != null) {
+                        let color = hex2FigmaColor(node.color || '#000')
+                        _node.fills = [
+                            {
+                                type: 'SOLID',
+                                color,
+                            }
+                        ]
+                    } else {
+                        _node.fills = [
+                        ]
+                    }
+                    if (node.border) {
+                        _node.strokes = [
+                            {
+                                type: 'SOLID',
+                                color: hex2FigmaColor(node.border.color || '#000'),
+                            }
+                        ]
+                        _node.strokeWeight = node.border.width || 1
+                    }
+                    frame.appendChild(_node)
+                    return { _node }
+                }
+                if (node._type == 'ellipse') {
+                    // return createCircle(node)
+                    const _node = figma.createEllipse()
+                    _node.x = node.cx - node.rx
+                    _node.y = node.cy - node.ry
+                    _node.resize(node.rx * 2, node.ry * 2)
+                    if (node.color != null) {
+                        let color = hex2FigmaColor(node.color || '#000')
+                        _node.fills = [
+                            {
+                                type: 'SOLID',
+                                color,
+                            }
+                        ]
+                    } else {
+                        _node.fills = [
+                        ]
+                    }
+                    if (node.border) {
+                        _node.strokes = [
+                            {
+                                type: 'SOLID',
+                                color: hex2FigmaColor(node.border.color || '#000'),
+                            }
+                        ]
+                        _node.strokeWeight = node.border.width || 1
+                    }
+                    frame.appendChild(_node)
+                    return { _node }
+                }
+                if (node._type == 'text') {
+                    // return createText(node)
+                    figma.loadFontAsync({ family: "Roboto", style: "Regular" })
+                        .then(() => {
+                            let _node = figma.createText()
+                            _node.x = node.x
+                            _node.y = node.y
+                            _node.fontSize = node.textSize
+                            // text.lineHeight = node.textSize
+                            _node.characters = node.text
+                            if (node.color != null) {
+                                let color = hex2FigmaColor(node.color || '#000')
+                                _node.fills = [
+                                    {
+                                        type: 'SOLID',
+                                        color,
+                                    }
+                                ]
+                            } else {
+                                _node.fills = [
+                                ]
+                            }
+                            if (node.border) {
+                                _node.strokes = [
+                                    {
+                                        type: 'SOLID',
+                                        color: hex2FigmaColor(node.border.color || '#000'),
+                                    }
+                                ]
+                                _node.strokeWeight = node.border.width || 1
+                            }
+                            _node.setRangeLineHeight(0, node.text.length, { value: node.textSize, unit: 'PIXELS' })
+                            frame.appendChild(_node)
+
+                        })
+                    // text.fontName = 'Roboto'
+                    return {  }
+                }
+                if (node._type == 'line') {
+                    // return createLine(node)
+                    let left = Math.min(node.x1, node.x2)
+                    let top = Math.min(node.y1, node.y2)
+                    let width = Math.abs(node.x1 - node.x2)
+                    let height = Math.abs(node.y1 - node.y2)
+                    let right = Math.max(node.x1, node.x2)
+                    let bottom = Math.max(node.y1, node.y2)
+
+                    const _node = figma.createLine()
+                    _node.x = left
+                    _node.y = top
+                    const length = Math.sqrt(width * width + height * height)
+                    _node.resize(length, 0)
+                    _node.rotation = getFigmaRotation(node)
+
+                    let color = hex2FigmaColor(node.color || '#000')
+                    _node.strokes = [
+                        {
+                            type: 'SOLID',
+                            color,
+                        }
+                    ]
+                    // if (node.color != null) {
+                    // } else {
+                    //     _node.strokes = [
+                    //     ]
+                    // }
+                    // line.resize(width, height)
+                    // line.
+
+                    frame.appendChild(_node)
+                    return { _node }
+                }
+                throw new Error(`unknown type ${node._type}`)
+                // return {
+                //     type: 'unknown'
+                // }
+            }
+        })
+
+
+        figma.closePlugin();
         // for (let i = 0; i < 3; i++) {
         // }
         // figma.currentPage.selection = nodes;
@@ -664,5 +745,5 @@ figma.ui.onmessage = msg => {
 
     // Make sure to close the plugin when you're done. Otherwise the plugin will
     // keep running, which shows the cancel button at the bottom of the screen.
-    figma.closePlugin();
+    
 };

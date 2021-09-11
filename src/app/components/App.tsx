@@ -33,10 +33,10 @@ const App = ({}) => {
     return (
         <div>
             <img src={require('../assets/logo.svg')} />
-            <h2>Rectangle Creator</h2>
-            <p>
+            <h2>UI Creator</h2>
+            {/* <p>
                 Count: <input ref={countRef} />
-            </p>
+            </p> */}
             <button id="create" onClick={onCreate}>
                 Create
             </button>
