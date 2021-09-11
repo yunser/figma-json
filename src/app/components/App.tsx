@@ -6,14 +6,14 @@ declare function require(path: string): any;
 const App = ({}) => {
     const textbox = React.useRef<HTMLInputElement>(undefined);
 
-    const countRef = React.useCallback((element: HTMLInputElement) => {
-        if (element) element.value = '5';
-        textbox.current = element;
-    }, []);
+    // const countRef = React.useCallback((element: HTMLInputElement) => {
+    //     if (element) element.value = '5';
+    //     textbox.current = element;
+    // }, []);
 
     const onCreate = () => {
-        const count = parseInt(textbox.current.value, 10);
-        parent.postMessage({pluginMessage: {type: 'create-rectangles', count}}, '*');
+        // const count = parseInt(textbox.current.value, 10);
+        parent.postMessage({pluginMessage: {type: 'create-rectangles', count: 0}}, '*');
     };
 
     const onCancel = () => {
