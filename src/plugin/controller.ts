@@ -1,50 +1,137 @@
 import toUint8Array from 'base64-to-uint8array'
 
-// figma.showUI(__html__);
-
-// figma.ui.onmessage = (msg) => {
-//     if (msg.type === 'create-rectangles') {
-//         const nodes = [];
-
-//         for (let i = 0; i < msg.count; i++) {
-//             const rect = figma.createRectangle();
-//             rect.x = i * 150;
-//             rect.fills = [{type: 'SOLID', color: {r: 1, g: 0.5, b: 0}}];
-//             figma.currentPage.appendChild(rect);
-//             nodes.push(rect);
-//         }
-
-//         figma.currentPage.selection = nodes;
-//         figma.viewport.scrollAndZoomIntoView(nodes);
-
-//         // This is how figma responds back to the ui
-//         figma.ui.postMessage({
-//             type: 'create-rectangles',
-//             message: `Created ${msg.count} Rectangles`,
-//         });
-//     }
-
-//     figma.closePlugin();
-// };
-// import { add } from './sub'
-// import Color = require('color')
-// import * as Color from 'color'
-// import Color from 'color'
-// import { getFigmaRotation } from './math'
-// console.log('Color', Color)
 import { uiUtil } from '@yunser/ui-std/dist/helper'
-// import * as fs from 'fs'
-// This plugin will open a window to prompt the user to enter a number, and
-// it will then create that many rectangles on the screen.
 
-// This file holds the main code for the plugins. It has access to the *document*.
-// You can access browser APIs in the <script> tag inside "ui.html" which has a
-// full browser environment (see documentation).
+// console.log('uiUtil', uiUtil)
 
-// const root = JSON.parse(fs.readFileSync('root.json', 'utf8'))
-// console.log('add', add(1, 2))
+function setBorder(_node, node) {
+    if (node.border) {
+        _node.strokes = [
+            {
+                type: 'SOLID',
+                color: hex2FigmaColor(node.border.color || '#000'),
+            }
+        ]
+        _node.strokeWeight = node.border.width || 1
+    }
+}
 
-console.log('uiUtil', uiUtil)
+function setCommon(_node, node) {
+    if (node.opacity) {
+        _node.opacity = node.opacity
+    }
+    if (node.shadow) {
+        const shadow = node.shadow
+        _node.effects = [
+            {
+                type: 'DROP_SHADOW',
+                color: {
+                    a: shadow.alpha || 0,
+                    ...hex2FigmaColor(shadow.color || '#000'),
+                },
+                blendMode: 'NORMAL',
+                radius: shadow.blur || 0,
+                visible: true,
+                offset: {
+                    x: shadow.x || 0,
+                    y: shadow.y || 0,
+                },
+                spread: shadow.spread || 0,
+                // radius: 
+            }
+        ]
+    }
+}
+
+function setStyle(_node, node) {
+    if (node.fill) {
+        const { type, direction, colors } = node.fill
+
+        if (type == 'linearGradient') {
+            function getTx(deg) {
+                if (deg >= 120) {
+                    if (deg >= 180) {
+                        return 1;
+                    }
+                    return 0.5;
+                }
+                return 0;
+            }
+
+
+            function getMatrixForDegrees(deg) {
+                const rad = parseFloat(deg) * (Math.PI / 180);
+
+                const a = Math.round(Math.cos(rad) * 100) / 100;
+                const b = Math.round(Math.sin(rad) * 100) / 100;
+                const c = -Math.round(Math.sin(rad) * 100) / 100;
+                const d = Math.round(Math.cos(rad) * 100) / 100;
+                const tx = getTx(deg);
+                const ty = deg >= 120 ? 1 : 0;
+
+                return [
+                    [a, b, tx],
+                    [c, d, ty],
+                ];
+            }
+
+
+            let angle = Math.PI
+            let transform: any = [
+                [Math.cos(angle), Math.sin(angle), 0],
+                [-Math.sin(angle), Math.cos(angle), 0]
+            ]
+
+            const angleMap = {
+                'right': 0,
+                'bottom': 90,
+                'left': 180,
+                "top": 270,
+            }
+
+            _node.fills = [
+                {
+                    type: 'GRADIENT_LINEAR',
+                    // to right
+                    // gradientTransform: [[1, 0, 0], [0, 1, 0]],
+                    gradientTransform: getMatrixForDegrees(angleMap[direction]) as any,
+                    gradientStops: [
+                        {
+                            position: 0,
+                            color: {
+                                ...hex2FigmaColor(colors[0]),
+                                a: 1,
+                            },
+                        },
+                        {
+                            position: 1,
+                            color: {
+                                ...hex2FigmaColor(colors[1]),
+                                a: 1,
+                            },
+                        }
+                    ]
+                }
+            ]
+        } else {
+
+        }
+        // direction: 'bottom',
+        //     colors: ['#09c', '#c90'],
+    } else if (node.color != null) {
+        let color = hex2FigmaColor(node.color || '#000')
+        _node.fills = [
+            {
+                type: 'SOLID',
+                color,
+            }
+        ]
+    } else {
+        _node.fills = [
+        ]
+    }
+    setBorder(_node, node)
+}
 
 function getPolygonSvg(_node) {
     let _attr: any = {}
@@ -297,8 +384,8 @@ console.log('hex2Rgb', hex2FigmaColor("#f00"))
 
 const root = {
     "_type": "root",
-    "width": 400,
-    "height": 300,
+    "width": 500,
+    "height": 400,
     "color": "#E6E6FB",
     "_children": [
         {
@@ -308,9 +395,10 @@ const root = {
             "width": 100,
             "height": 100,
             "color": null,
-            "border": {
-                "color": "#526BFF",
-                "width": 2
+            // "color": "#f00",
+            border: {
+                color: '#526BFF',
+                width: 4,
             }
         },
         {
@@ -318,10 +406,16 @@ const root = {
             "cx": 250,
             "cy": 150,
             "radius": 50,
+            // "color": "#09c",
             "color": null,
-            "border": {
-                "color": "#526BFF",
-                "width": 2
+            fill: {
+                type: 'linearGradient',
+                direction: 'bottom',
+                colors: ['#09c', '#c90'],
+            },
+            border: {
+                color: '#526BFF',
+                width: 4,
             }
         },
         {
@@ -330,7 +424,11 @@ const root = {
             "y1": 200,
             "x2": 200,
             "y2": 300,
-            "color": "#f00"
+            // color: '#f00',
+            border: {
+                color: '#526BFF',
+                width: 4,
+            },
         },
         {
             "_type": "text",
@@ -338,33 +436,44 @@ const root = {
             "y": 0,
             "text": "你好",
             "textSize": 100,
+            // color: '#f00',
             "color": null,
-            "border": {
-                "color": "#526BFF",
-                "width": 2
-            }
+            border: {
+                color: '#526BFF',
+                width: 4,
+            },
+            fill: {
+                type: 'linearGradient',
+                direction: 'bottom',
+                colors: ['#09c', '#c90'],
+            },
         },
         {
             "_type": "polygon",
-            "points": [
+            points: [
                 {
-                    "x": 50,
-                    "y": 100
+                    x: 50,
+                    y: 100,
                 },
                 {
-                    "x": 0,
-                    "y": 200
+                    x: 0,
+                    y: 200,
                 },
                 {
-                    "x": 100,
-                    "y": 200
-                }
+                    x: 100,
+                    y: 200,
+                },
             ],
-            "color": "#E56D6D",
-            "border": {
-                "color": "#526BFF",
-                "width": 2
-            }
+            color: '#E56D6D',
+            border: {
+                color: '#526BFF',
+                width: 4,
+            },
+            fill: {
+                type: 'linearGradient',
+                direction: 'bottom',
+                colors: ['#09c', '#c90'],
+            },
         },
         {
             _type: 'polyline',
@@ -382,45 +491,9 @@ const root = {
                     y: 100,
                 },
             ],
-            color: '#526BFF',
-        },
-        {
-            "_type": "ellipse",
-            cx: 50,
-            cy: 250,
-            rx: 50,
-            ry: 25,
-            color: '#E56D6D',
-            fill: {
-                type: 'linearGradient',
-                direction: 'bottom',
-                colors: ['#09c', '#c90'],
-            },
-            opacity: 0.5,
             border: {
                 color: '#526BFF',
-                width: 2,
-            },
-        },
-        {
-            "_type": "ellipse",
-            cx: 50,
-            cy: 250,
-            rx: 50,
-            ry: 25,
-            color: '#E56D6D',
-            border: {
-                color: '#526BFF',
-                width: 2,
-            },
-        },
-        {
-            "_type": "path",
-            d: 'M200,200.490196 L199.509804,300 C212.323108,269.060446 229.153174,253.590669 250,253.590669 C270.846826,253.590669 287.513493,268.897047 300,299.509804 L300,200 L200,200.490196 Z',
-            color: '#E56D6D',
-            border: {
-                color: '#526BFF',
-                width: 2,
+                width: 4,
             },
         },
         {
@@ -429,13 +502,95 @@ const root = {
             ],
         },
         {
+            "_type": "ellipse",
+            cx: 50,
+            cy: 250,
+            rx: 50,
+            ry: 25,
+            color: '#E56D6D',
+            border: {
+                color: '#526BFF',
+                width: 4,
+            },
+            fill: {
+                type: 'linearGradient',
+                direction: 'bottom',
+                colors: ['#09c', '#c90'],
+            },
+            opacity: 0.5,
+            shadow: {
+                x: 5,
+                y: 5,
+                blur: 10,
+                alpha: 0.2,
+            },
+        },
+        {
+            "_type": "path",
+            d: 'M200,200.490196 L199.509804,300 C212.323108,269.060446 229.153174,253.590669 250,253.590669 C270.846826,253.590669 287.513493,268.897047 300,299.509804 L300,200 L200,200.490196 Z',
+            color: '#E56D6D',
+            border: {
+                color: '#526BFF',
+                width: 4,
+            },
+            fill: {
+                type: 'linearGradient',
+                direction: 'bottom',
+                colors: ['#09c', '#c90'],
+            },
+        },
+        {
             _type: 'image',
             x: 300,
             y: 0,
             width: 100,
             height: 100,
-            opacity: 0.5,
             href: "data:image/png;base64,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",
+        },
+        {
+            "_type": "rect",
+            "x": 300,
+            "y": 100,
+            "width": 100,
+            "height": 100,
+            // "color": null,
+            "color": "#09c",
+            // border: {
+            //     color: '#526BFF',
+            //     width: 4,
+            // }
+            fill: {
+                type: 'linearGradient',
+                direction: 'bottom',
+                colors: ['#09c', '#c90'],
+            },
+        },
+        {
+            "_type": "rect",
+            "x": 300,
+            "y": 200,
+            "width": 100,
+            "height": 100,
+            // "color": null,
+            "color": "#f00",
+            shadow: {
+                x: 5,
+                y: 5,
+                blur: 10,
+                // spread: 10,
+                // color: '#09c',
+                alpha: 0.2,
+            },
+            opacity: 0.5,
+            // border: {
+            //     color: '#526BFF',
+            //     width: 4,
+            // }
+            // fill: {
+            //     type: 'linearGradient',
+            //     direction: 'bottom',
+            //     colors: ['#09c', '#c90'],
+            // },
         },
     ]
 }
@@ -494,29 +649,9 @@ figma.ui.onmessage = msg => {
                     console.log('rect', _node)
                     // rect.width = 100
                     // rect.height = 100
-                    if (node.color != null) {
-                        let color = hex2FigmaColor(node.color || '#000')
-                        _node.fills = [
-                            {
-                                type: 'SOLID',
-                                color,
-                            }
-                        ]
-                    } else {
-                        _node.fills = [
-                        ]
-                    }
-                    if (node.border) {
-                        _node.strokes = [
-                            {
-                                type: 'SOLID',
-                                color: hex2FigmaColor(node.border.color || '#000'),
-                            }
-                        ]
-                        _node.strokeWeight = node.border.width || 1
-                    }
-
-
+                    setCommon(_node, node)
+                    setStyle(_node, node)
+                    
                     frame.appendChild(_node)
 
                     // figma.currentPage.appendChild(rect);
@@ -558,10 +693,8 @@ figma.ui.onmessage = msg => {
                     //     // ]
                     //     // _node.strokeWeight = node.border.width || 1
                     // }
-
-                    if (node.opacity) {
-                        _node.opacity = node.opacity
-                    }
+                    setCommon(_node, node)
+                    
 
 
                     frame.appendChild(_node)
@@ -577,6 +710,7 @@ figma.ui.onmessage = msg => {
                         const _node = figma.group(children.map(item => item._node), frame)
                         // let svg = uiUtil.svgObj2Xml(getPolygonSvg(node))
                         // const _node = figma.createNodeFromSvg(svg)
+                        setCommon(_node, node)
                         frame.appendChild(_node)
                         return { _node }
                     }
@@ -585,6 +719,8 @@ figma.ui.onmessage = msg => {
                 if (node._type == 'polygon') {
                     let svg = uiUtil.svgObj2Xml(getPolygonSvg(node))
                     const _node = figma.createNodeFromSvg(svg)
+                    setCommon(_node, node)
+                    setStyle(_node, node)
                     frame.appendChild(_node)
                     return { _node }
                 }
@@ -592,18 +728,25 @@ figma.ui.onmessage = msg => {
                     let svg = uiUtil.svgObj2Xml(getPathSvg(node))
                     console.log('psvg', svg)
                     const _node = figma.createNodeFromSvg(svg)
+                    setCommon(_node, node)
+                    setStyle(_node, node)
                     frame.appendChild(_node)
                     return { _node }
                 }
                 if (node._type == 'path') {
                     let svg = uiUtil.svgObj2Xml(getPolygonSvg(node))
                     const _node = figma.createNodeFromSvg(svg)
+                    setCommon(_node, node)
+                    setStyle(_node, node)
                     frame.appendChild(_node)
                     return { _node }
                 }
                 if (node._type == 'polyline') {
                     let svg = uiUtil.svgObj2Xml(getPolylinSvg(node))
                     const _node = figma.createNodeFromSvg(svg)
+                    // setStyle(_node, node)
+                    setCommon(_node, node)
+                    setBorder(_node, node)
                     frame.appendChild(_node)
                     return { _node }
                 }
@@ -614,28 +757,8 @@ figma.ui.onmessage = msg => {
                     _node.x = node.cx - node.radius
                     _node.y = node.cy - node.radius
                     _node.resize(node.radius * 2, node.radius * 2)
-                    if (node.color != null) {
-                        let color = hex2FigmaColor(node.color || '#000')
-                        _node.fills = [
-                            {
-                                type: 'SOLID',
-                                color,
-                            }
-                        ]
-                    } else {
-                        _node.fills = [
-                        ]
-                    }
-                    if (node.border) {
-                        _node.strokes = [
-                            {
-                                type: 'SOLID',
-                                color: hex2FigmaColor(node.border.color || '#000'),
-                            }
-                        ]
-                        _node.strokeWeight = node.border.width || 1
-                    }
-                    
+                    setCommon(_node, node)
+                    setStyle(_node, node)
                     frame.appendChild(_node)
                     return { _node }
                 }
@@ -645,30 +768,9 @@ figma.ui.onmessage = msg => {
                     _node.x = node.cx - node.rx
                     _node.y = node.cy - node.ry
                     _node.resize(node.rx * 2, node.ry * 2)
-                    if (node.color != null) {
-                        let color = hex2FigmaColor(node.color || '#000')
-                        _node.fills = [
-                            {
-                                type: 'SOLID',
-                                color,
-                            }
-                        ]
-                    } else {
-                        _node.fills = [
-                        ]
-                    }
-                    if (node.border) {
-                        _node.strokes = [
-                            {
-                                type: 'SOLID',
-                                color: hex2FigmaColor(node.border.color || '#000'),
-                            }
-                        ]
-                        _node.strokeWeight = node.border.width || 1
-                    }
-                    if (node.opacity) {
-                        _node.opacity = node.opacity
-                    }
+
+                    setCommon(_node, node)
+                    setStyle(_node, node)
                     frame.appendChild(_node)
                     return { _node }
                 }
@@ -704,6 +806,7 @@ figma.ui.onmessage = msg => {
                                 _node.strokeWeight = node.border.width || 1
                             }
                             _node.setRangeLineHeight(0, node.text.length, { value: node.textSize, unit: 'PIXELS' })
+                            setCommon(_node, node)
                             frame.appendChild(_node)
 
                         })
@@ -726,13 +829,16 @@ figma.ui.onmessage = msg => {
                     _node.resize(length, 0)
                     _node.rotation = getFigmaRotation(node)
 
-                    let color = hex2FigmaColor(node.color || '#000')
-                    _node.strokes = [
-                        {
-                            type: 'SOLID',
-                            color,
-                        }
-                    ]
+                    // let color = hex2FigmaColor(node.color || '#000')
+
+                    setCommon(_node, node)
+                    setBorder(_node, node)
+                    // _node.strokes = [
+                    //     {
+                    //         type: 'SOLID',
+                    //         color,
+                    //     }
+                    // ]
                     // if (node.color != null) {
                     // } else {
                     //     _node.strokes = [
