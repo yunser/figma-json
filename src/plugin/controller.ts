@@ -8,6 +8,21 @@ function breakPoint() {
     throw new Error('breakPoint')
 }
 
+const MathUtil = {
+    distance(pt, lastPt) {
+        return Math.sqrt(Math.pow(lastPt.x - pt.x, 2) + Math.pow(lastPt.y - pt.y, 2))
+    },
+    gougu(width, height) {
+        return Math.sqrt(width * width + height * height)
+    },
+    degToRad(x) {
+        return x * Math.PI / 180
+    },
+    radToDeg(rad) {
+        return rad * 180 / Math.PI
+    },
+}
+
 let ff2: PluginAPI
 
 function setBorder(_node, node) {
@@ -316,6 +331,9 @@ function _getAngle(x, y) {
     }
 }
 
+//  二   90  一
+// 180     0
+//  三  -90  四
 function getFigmaRotation(node) {
     if (node.y1 == node.y2) {
         // return 0
@@ -324,15 +342,49 @@ function getFigmaRotation(node) {
         }
         return 180
     }
-
-    let value = getAngleBy2Point({ x: node.x1, y: node.y1 }, { x: node.x2, y: node.y2 })
-
-    if (node.y2 > node.y1) {
-        return value - 90
+    if (node.x1 == node.x2) {
+        if (node.y2 < node.y1) {
+            return 90
+        }
+        else {
+            return -90
+        }
     }
 
-    // 90 ~ 270 映射到 0 ~ -180
-    return 0 - (value - 90)
+    const xLength = Math.abs(node.x1 - node.x2)
+    const yLength = Math.abs(node.y1 - node.y2)
+    const lineLength = MathUtil.gougu(xLength, yLength)
+    if (node.x2 > node.x1) {
+        if (node.y2 < node.y1) {
+            // 第一像限
+            return MathUtil.radToDeg(Math.sinh(yLength / lineLength))
+        }
+        else {
+            // 第四像限
+            return -MathUtil.radToDeg(Math.sinh(yLength / lineLength))
+        }
+    }
+    else {
+        if (node.y2 < node.y1) {
+            // 第二像限
+            return 180 - MathUtil.radToDeg(Math.sinh(yLength / lineLength))
+        }   
+        else {
+            // 第三像限
+            return -(180 - MathUtil.radToDeg(Math.sinh(yLength / lineLength)))
+        }
+    }
+
+    // let value = getAngleBy2Point({ x: node.x1, y: node.y1 }, { x: node.x2, y: node.y2 })
+
+    // if (node.y2 > node.y1) {
+    //     return value - 90
+    // }
+
+    // // 90 ~ 270 映射到 0 ~ -180
+    // return 0 - (value - 90)
+
+
     // if (node.x2 > node.x1) {
     //     if (node.y1 == node.y2) {
     //         return 0
@@ -736,17 +788,101 @@ function parseEllipse(node: EllipseNode) {
     })
 }
 
+//     90
+// 180     0
+//    -90
 function parseLine(node: LineNode) {
-    console.log('parseLine', node)
-    return {
-        _type: 'rect',
-        id: node.id,
-        name: node.name,
+    console.log('parseLine', node, node.rotation)
+    console.log('parseLine.xy', node.x, node.y)
+    console.log('parseLine.xy rotation', node.rotation)
+
+    const { rotation } = node
+    // if (rotation)
+    const length = node.width
+    // const distance = geoUtil.distance({ x: })
+    const start = {
         x: node.x,
         y: node.y,
-        width: node.width,
-        height: node.height,
     }
+    console.log('parseLine.start', start)
+
+    function getPoint() {
+        if (rotation == 0) {
+            return {
+                x: start.x + length,
+                y: start.y,
+            }
+        }
+        else if (rotation > 0 && rotation < 90) {
+            // 第一像限
+            const x = Math.abs(Math.cos(MathUtil.degToRad(rotation)) * length)
+            const y = Math.abs(Math.sin(MathUtil.degToRad(rotation)) * length)
+            console.log('parseLine.xy2 一', x, y, Math.cos(MathUtil.degToRad(rotation)))
+            return {
+                x: start.x + x,
+                y: start.y - y,
+            }
+        }
+        else if (rotation == 90) {
+            return {
+                x: start.x,
+                y: start.y - length,
+            }
+        }
+        else if (rotation > 90 && rotation < 180) {
+            // 第二像限
+            const x = Math.abs(Math.cos(MathUtil.degToRad(rotation)) * length)
+            const y = Math.abs(Math.sin(MathUtil.degToRad(rotation)) * length)
+            console.log('parseLine.xy2 二', x, y, Math.cos(MathUtil.degToRad(rotation)))
+            return {
+                x: start.x - x,
+                y: start.y - y,
+            }
+        }
+        else if (rotation == 180) {
+            return {
+                x: start.x - length,
+                y: start.y,
+            }
+        }
+        else if (rotation < 0 && rotation > -90) {
+            // 第四像限
+            const x = Math.abs(Math.cos(MathUtil.degToRad(rotation)) * length)
+            const y = Math.abs(Math.sin(MathUtil.degToRad(rotation)) * length)
+            console.log('parseLine.xy2 三', x, y, Math.cos(MathUtil.degToRad(rotation)))
+            return {
+                x: start.x + x,
+                y: start.y + y,
+            }
+        }
+        else if (rotation == -90) {
+            return {
+                x: start.x,
+                y: start.y + length,
+            }
+        }
+        else {
+            // 第三像限
+            const x = Math.abs(Math.cos(MathUtil.degToRad(rotation)) * length)
+            const y = Math.abs(Math.sin(MathUtil.degToRad(rotation)) * length)
+            console.log('parseLine.xy2 三', x, y, Math.cos(MathUtil.degToRad(rotation)))
+            return {
+                x: start.x - x,
+                y: start.y + y,
+            }
+
+        }
+    }
+    const end = getPoint()
+    
+    return parseCommon(node, {
+        _type: 'line',
+        x1: start.x,
+        y1: start.y,
+        x2: end.x,
+        y2: end.y,
+    })
+    
 }
 
 function someAttr(obj, attrs) {
@@ -828,6 +964,7 @@ figma.ui.onmessage = msg => {
     if (msg.type === 'create-element') {
         // return
         const root = getFrame1Json()
+        console.log('ROOT?', root)
 
         console.log('figma', figma)
         const page1 = figma.root.children[0]
@@ -1017,6 +1154,7 @@ figma.ui.onmessage = msg => {
 
                     // return createLine(node)
                     let left = Math.min(node.x1, node.x2)
+                    // let left = Math.min(, node.x2)
                     let top = Math.min(node.y1, node.y2)
                     let width = Math.abs(node.x1 - node.x2)
                     let height = Math.abs(node.y1 - node.y2)
@@ -1024,8 +1162,8 @@ figma.ui.onmessage = msg => {
                     let bottom = Math.max(node.y1, node.y2)
 
                     const _node = figma.createLine()
-                    _node.x = left
-                    _node.y = top
+                    _node.x = node.x1
+                    _node.y = node.y1
                     const length = Math.sqrt(width * width + height * height)
                     _node.resize(length, 0)
                     _node.rotation = getFigmaRotation(node)
