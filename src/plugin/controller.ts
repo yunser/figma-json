@@ -962,13 +962,15 @@ function parseLine(node: LineNode) {
 }
 
 function parseText(node: TextNode) {
-    return {
+    return parseCommon(node, {
         _type: 'text',
         text: node.characters,
         x: node.x,
         y: node.y,
         textSize: node.fontSize,
-    }
+    })
+    // return {
+    // }
 }
 
 function someAttr(obj, attrs) {
