@@ -922,6 +922,16 @@ function parseLine(node: LineNode) {
     
 }
 
+function parseText(node: TextNode) {
+    return {
+        _type: 'text',
+        text: node.characters,
+        x: node.x,
+        y: node.y,
+        textSize: node.fontSize,
+    }
+}
+
 function someAttr(obj, attrs) {
     const newObj = {}
     for (let key of attrs) {
@@ -968,6 +978,9 @@ function getFrame1Json() {
             }
             else if (node.type == 'LINE') {
                 return parseLine(node)
+            }
+            else if (node.type == 'TEXT') {
+                return parseText(node)
             }
             // return {
             //     type: node.type,
@@ -1167,7 +1180,7 @@ figma.ui.onmessage = msg => {
                     return { _node }
                 }
                 if (node._type == 'text') {
-                    console.log('nodeHandler text')
+                    console.log('nodeHandler_text')
 
                     // return createText(node)
                     figma.loadFontAsync({ family: "Roboto", style: "Regular" })
@@ -1175,11 +1188,14 @@ figma.ui.onmessage = msg => {
                             let _node = figma.createText()
                             _node.x = node.x
                             _node.y = node.y
-                            _node.fontSize = node.textSize
+                            _node.fontSize = node.textSize || 12
                             // text.lineHeight = node.textSize
                             _node.characters = node.text
 
-                            _node.setRangeLineHeight(0, node.text.length, { value: node.textSize, unit: 'PIXELS' })
+                            _node.setRangeLineHeight(0, node.text.length, {
+                                value: node.textSize || 12, 
+                                unit: 'PIXELS'
+                            })
                             setCommon(_node, node)
                             frame2.appendChild(_node)
 
