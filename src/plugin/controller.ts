@@ -13,6 +13,21 @@ function breakPoint() {
     throw new Error('breakPoint')
 }
 
+function getPolygonPoints(center, radius, sides, startAngle = Math.PI * 2) {
+    const centerX = center.x
+    const centerY = center.y
+    const points = [];
+    let angle = startAngle || 0;
+    for (let i = 0; i < sides; ++i) {
+        points.push({
+            x: centerX + radius * Math.sin(angle),
+            y: centerY - radius * Math.cos(angle),
+        })
+        angle += 2 * Math.PI / sides;
+    }
+    return points;
+}
+
 const MathUtil = {
     distance(pt, lastPt) {
         return Math.sqrt(Math.pow(lastPt.x - pt.x, 2) + Math.pow(lastPt.y - pt.y, 2))
@@ -26,6 +41,59 @@ const MathUtil = {
     radToDeg(rad) {
         return rad * 180 / Math.PI
     },
+    rectCenter(_attr) {
+        return {
+            x: _attr.x + _attr.width / 2,
+            y: _attr.y + _attr.height / 2,
+        }
+    },
+    getPolygonPoints,
+    getPointsBBox(points) {
+        let left = points[0].x
+        let right = points[0].x
+        let top = points[0].y
+        let bottom = points[0].y
+        points.forEach((pt) => {
+            if (pt.x < left) {
+                left = pt.x
+            }
+            if (pt.x > right) {
+                right = pt.x
+            }
+            if (pt.y < top) {
+                top = pt.y
+            }
+            if (pt.y > bottom) {
+                bottom = pt.y
+            }
+        })
+        const width = right - left
+        const height = bottom - top
+        return {
+            left,
+            right,
+            top,
+            bottom,
+            width,
+            height,
+        }
+    },
+    translatePoints(points, left) {
+        return points.map(pt => {
+            return {
+                x: pt.x + left,
+                y: pt.y,
+            }
+        })
+    },
+    scalePoints(points, scale) {
+        return points.map(pt => {
+            return {
+                x: pt.x * scale,
+                y: pt.y,
+            }
+        })
+    }
 }
 
 let ff2: PluginAPI
@@ -776,12 +844,54 @@ function parseRect(node: RectangleNode) {
 }
 
 function parsePolygon(node: PolygonNode){
+
+    const edge = node.pointCount
+    console.log('parsePolygon.edge', edge)
+    const angle = (edge - 2) * 180 / edge // 内角
+
+    
+
+    const center = MathUtil.rectCenter(node)
+
+    const size = Math.min(node.width, node.height) / 2
+
+    const toWidth = Math.cos(MathUtil.degToRad(angle / 2)) * size * 2
+    console.log('parsePolygon.toWidth', toWidth)
+
+    const points = MathUtil.getPolygonPoints(center, size, edge)
+    console.log('parsePolygon.points', points)
+    const { left, width } = MathUtil.getPointsBBox(points)
+    console.log('parsePolygon.left, width', left, width)
+    // breakPoint()
+
+    // simple fetch
+    // 
+    // const scale = node.width / width
+    const ratio = toWidth / Math.min(node.width, node.height)
+    const scale = node.width / Math.min(node.width, node.height)
+    // const newWith = toWidth * scale
+    
+    // console.log('parsePolygon.newPoints', newPoints)
+
+    let newPoints = MathUtil.translatePoints(points, -left)
+    newPoints = MathUtil.scalePoints(newPoints, scale)
+
+    const { width: newWith } = MathUtil.getPointsBBox(newPoints)
+    console.log('parsePolygon.newWith', newWith)
+
+    newPoints = MathUtil.translatePoints(newPoints, node.x + (node.width - newWith) / 2)
+    // newPoints = MathUtil.translatePoints(newPoints, node.x)
+
+    console.log('parsePolygon.newPoints', newPoints)
+
     return parseCommon(node, {
-        _type: 'rect',
-        x: node.x,
-        y: node.y,
-        width: node.width,
-        height: node.height,
+        _type: 'polygon',
+        // points: points,
+        points: newPoints,
+        // x: node.x,
+        // y: node.y,
+        // width: node.width,
+        // height: node.height,
     })
 }
 
