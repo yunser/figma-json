@@ -11,11 +11,15 @@
   "dependencies": {
     "@yunser/ui-std": "^0.0.13-alpha",
     "base64-to-uint8array": "^1.0.0",
+    "parse-svg-path": "^0.1.2",
     "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react-dom": "^17.0.2",
+    "serialize-svg-path": "^0.1.0",
+    "translate-svg-path": "^0.0.1"
   },
   "devDependencies": {
     "@figma/plugin-typings": "^1.24.0",
+    "@types/node": "^17.0.15",
     "@types/react": "^17.0.11",
     "@types/react-dom": "^17.0.7",
     "css-loader": "^5.0.1",

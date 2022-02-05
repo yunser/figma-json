@@ -2,6 +2,11 @@ import toUint8Array from 'base64-to-uint8array'
 
 import { uiUtil } from '@yunser/ui-std/dist/helper'
 
+var parse = require('parse-svg-path')
+var translate = require('translate-svg-path')
+var serialize = require('serialize-svg-path')
+
+
 // console.log('uiUtil', uiUtil)
 
 function breakPoint() {
@@ -760,15 +765,47 @@ function parseRect(node: RectangleNode) {
 
 function parseVector(node: VectorNode) {
     console.log('parseVector', node)
+    console.log('parseVector.vectorPaths', node.vectorPaths)
+    console.log('parseVector.xy', node.x, node.y)
+
+    
+    // return {
+    //     _type: 'rect',
+    //     id: node.id,
+    //     name: node.name,
+    //     x: node.x,
+    //     y: node.y,
+    //     width: node.width,
+    //     height: node.height,
+    // }
     return {
-        _type: 'rect',
-        id: node.id,
-        name: node.name,
-        x: node.x,
-        y: node.y,
-        width: node.width,
-        height: node.height,
+        _type: 'group',
+        _children: node.vectorPaths.map(path => {
+            console.log('parseVector.path', path)
+
+            const newD = serialize(translate(parse(path.data), node.x, node.y))
+
+            return parseCommon(node, {
+                // _type: 'rect',
+                // x: node.x,
+                // y: node.y,
+                // width: node.width,
+                // height: node.height,
+                _type: 'path',
+                d: newD,
+            })
+            // return {
+            // }
+        }),   
     }
+    return parseCommon(node, {
+        _type: 'path',
+        d: 'M 0 0 L 100, 100 L 100 0 Z'
+        // cx: node.x + node.width / 2,
+        // cy: node.y + node.height / 2,
+        // rx: node.width / 2,
+        // ry: node.height / 2,
+    })
 }
 
 function parseEllipse(node: EllipseNode) {
@@ -909,6 +946,8 @@ function getFrame1Json() {
         childrenSetKey: '_children',
         nodeHandler(node, { children }) {
 
+            console.log('nodeHandler2', node.type, node)
+
             if (node.type == 'FRAME') {
                 return parseFrame(node)
             }
@@ -930,10 +969,15 @@ function getFrame1Json() {
             else if (node.type == 'LINE') {
                 return parseLine(node)
             }
-            return {
-                type: node.type,
-                ...JSON.parse(JSON.stringify(node)),
-            }
+            // return {
+            //     type: node.type,
+            //     ...JSON.parse(JSON.stringify(node)),
+            // }
+            throw new Error(`Unknown Figma Type ${node.type}`)
+            // return {
+            //     type: node.type,
+            //     ...JSON.parse(JSON.stringify(node)),
+            // }
         }
     })
     console.log('resultJson', resultJson)
@@ -950,6 +994,7 @@ figma.ui.onmessage = msg => {
     // })
 
     
+    
 
 
     // const nodes: SceneNode[] = [];
@@ -963,6 +1008,7 @@ figma.ui.onmessage = msg => {
     }
     if (msg.type === 'create-element') {
         // return
+        console.clear()
         const root = getFrame1Json()
         console.log('ROOT?', root)
 
@@ -1084,13 +1130,6 @@ figma.ui.onmessage = msg => {
                     frame2.appendChild(_node)
                     return { _node }
                 }
-                // if (node._type == 'path') {
-                //     let svg = uiUtil.svgObj2Xml(getPolygonSvg(node))
-                //     const _node = figma.createNodeFromSvg(svg)
-                //     setCommon(_node, node)
-                //     frame2.appendChild(_node)
-                //     return { _node }
-                // }
                 if (node._type == 'polyline') {
                     console.log('nodeHandler polyline')
 
