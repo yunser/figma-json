@@ -407,6 +407,9 @@ function hex2FigmaColor(sColor) {
 console.log('hex2Rgb', hex2FigmaColor("#f00"))
 
 function parseFigmaColor(color: RGB) {
+    if (!color) {
+        return '#000'
+    }
     return `rgb(${color.r * 255}, ${color.g * 255}, ${color.b * 255})`
 }
 
@@ -667,18 +670,36 @@ function parseGroup(node: GroupNode) {
     }
 }
 
-function parseRect(node: RectangleNode) {
-    console.log('parseRect', node.name, node, node.fills[0].color)
+function parseFigmaStoke(strokes: Paint[]) {
+    const stroke: any = strokes[0]
+    if (!stroke) {
+        return undefined
+    }
     return {
-        _type: 'rect',
+        color: parseFigmaColor(stroke?.color),
+    }
+}
+
+function parseCommon(node, extra) {
+    return {
         id: node.id,
         name: node.name,
+        color: parseFigmaColor(node.fills[0]?.color),
+        border: parseFigmaStoke(node.strokes),
+        ...extra,
+    }
+}
+
+function parseRect(node: RectangleNode) {
+    console.log('parseRect', node.name, node, node.strokes)
+
+    return parseCommon(node, {
+        _type: 'rect',
         x: node.x,
         y: node.y,
         width: node.width,
         height: node.height,
-        color: parseFigmaColor(node.fills[0].color)
-    }
+    })
 }
 
 function parseVector(node: VectorNode) {
