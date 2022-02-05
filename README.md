@@ -1,6 +1,10 @@
 # figma-json
 
+导入导出 Std UI
+
 根据 [Std UI JSON](https://github.com/yunser/json-ui) 生成形状的 Figma 插件。
+run npm install --save-dev @figma/plugin-typings.
+
 
 
 ## Quickstart
@@ -36,3 +40,6 @@ This repo is using:
 ## Other
 
 * Due to the limitation of figma, if the number of child nodes of the group is 0, the group itself will not be generated.
+
+* 参考
+  * https://github.com/nirsky/figma-plugin-react-template

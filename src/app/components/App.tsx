@@ -13,8 +13,12 @@ const App = ({}) => {
 
     const onCreate = () => {
         // const count = parseInt(textbox.current.value, 10);
-        parent.postMessage({pluginMessage: {type: 'create-rectangles', count: 0}}, '*');
-    };
+        parent.postMessage({pluginMessage: {type: 'create-element', count: 0}}, '*');
+    }
+
+    function toJson() {
+        parent.postMessage({ pluginMessage: { type: 'create-json', count: 0 } }, '*');
+    }
 
     const onCancel = () => {
         parent.postMessage({pluginMessage: {type: 'cancel'}}, '*');
@@ -33,12 +37,15 @@ const App = ({}) => {
     return (
         <div>
             <img src={require('../assets/logo.svg')} />
-            <h2>UI Creator</h2>
+            <h2>UI Creator v0.0.1-1</h2>
             {/* <p>
                 Count: <input ref={countRef} />
             </p> */}
             <button id="create" onClick={onCreate}>
-                Create
+                Ad Element
+            </button>
+            <button onClick={toJson}>
+                to JSON
             </button>
             <button onClick={onCancel}>Cancel</button>
         </div>
