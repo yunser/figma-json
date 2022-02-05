@@ -369,6 +369,11 @@ function hexToFigmaColor(hex) {
 }
 
 function colorRgb(sColor) {
+    if (sColor.includes('rgb')) {
+        const arr = sColor.match(/[\d-.]+/g).map(item => parseFloat(item))
+        return arr
+    }
+    
     var reg = /^#([0-9a-fA-f]{3}|[0-9a-fA-f]{6})$/;
     var sColor = sColor.toLowerCase();
     if (sColor && reg.test(sColor)) {
@@ -401,6 +406,9 @@ function hex2FigmaColor(sColor) {
 }
 console.log('hex2Rgb', hex2FigmaColor("#f00"))
 
+function parseFigmaColor(color: RGB) {
+    return `rgb(${color.r * 255}, ${color.g * 255}, ${color.b * 255})`
+}
 
 // const root = {
 //     "_type": "root",
@@ -660,7 +668,7 @@ function parseGroup(node: GroupNode) {
 }
 
 function parseRect(node: RectangleNode) {
-    console.log('parseRect', node)
+    console.log('parseRect', node.name, node, node.fills[0].color)
     return {
         _type: 'rect',
         id: node.id,
@@ -669,6 +677,7 @@ function parseRect(node: RectangleNode) {
         y: node.y,
         width: node.width,
         height: node.height,
+        color: parseFigmaColor(node.fills[0].color)
     }
 }
 
@@ -726,7 +735,7 @@ function getFrame1Json() {
     // (window as any)['_page1'] = 12
 
     console.log('page1', page1)
-    const frame1 = page1.children[0]
+    const frame1 = page1.children.find(item => item.name == 'frame-1')
     console.log('frame1', frame1)
     console.log('frame1.type', frame1.type)
 
@@ -794,7 +803,7 @@ figma.ui.onmessage = msg => {
         console.log('figma', figma)
         const page1 = figma.root.children[0]
         console.log('page1', page1)
-        let frame2 = page1.children[1] as FrameNode
+        let frame2 = page1.children.find(item => item.name == 'frame-2') as FrameNode
         if (frame2) {
             frame2.remove()
         }
@@ -803,6 +812,7 @@ figma.ui.onmessage = msg => {
         frame2 = figma.createFrame()
         frame2.x = 826
         frame2.y = 0
+        frame2.name = 'frame-2'
         frame2.resize(800, 800)
         figma.currentPage.appendChild(frame2)
 
