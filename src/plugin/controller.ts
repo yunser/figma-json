@@ -31,6 +31,7 @@ const MathUtil = {
 let ff2: PluginAPI
 
 function setBorder(_node, node) {
+    // const strokes: Stor
     if (node.border) {
         _node.strokes = [
             {
@@ -41,6 +42,9 @@ function setBorder(_node, node) {
         _node.strokeWeight = node.border.width || 1
         _node.strokeAlign = 'CENTER'
         // "CENTER" | "INSIDE" | "OUTSIDE"
+    }
+    else {
+        _node.strokes = []
     }
 }
 
@@ -79,14 +83,19 @@ function setFill(_node, node) {
 }
 
 function setStyle(_node, node) {
-    let color = hex2FigmaColor(node.color || '#000')
-    
-    _node.fills = [
-        {
-            type: 'SOLID',
-            color,
-        }
-    ]
+    if (node.color) {
+        let color = hex2FigmaColor(node.color || '#000')
+        
+        _node.fills = [
+            {
+                type: 'SOLID',
+                color,
+            }
+        ]
+    }
+    else {
+        _node.fills = []
+    }
 
     // if (node.fill) {
     //     const { type, direction, colors } = node.fill
@@ -469,7 +478,7 @@ console.log('hex2Rgb', hex2FigmaColor("#f00"))
 
 function parseFigmaColor(color: RGB) {
     if (!color) {
-        return '#000'
+        return null
     }
     return `rgb(${color.r * 255}, ${color.g * 255}, ${color.b * 255})`
 }
@@ -731,13 +740,16 @@ function parseGroup(node: GroupNode) {
     }
 }
 
-function parseFigmaStoke(strokes: Paint[]) {
+function parseFigmaStoke(node) {
+    const strokes: Paint[] = node.strokes
     const stroke: any = strokes[0]
     if (!stroke) {
         return undefined
     }
+    console.log('stroke', stroke)
     return {
         color: parseFigmaColor(stroke?.color),
+        width: node.strokeWeight || 1
     }
 }
 
@@ -746,13 +758,35 @@ function parseCommon(node, extra) {
         id: node.id,
         name: node.name,
         color: parseFigmaColor(node.fills[0]?.color),
-        border: parseFigmaStoke(node.strokes),
+        border: parseFigmaStoke(node),
         ...extra,
     }
 }
 
 function parseRect(node: RectangleNode) {
     console.log('parseRect', node.name, node, node.strokes)
+
+    return parseCommon(node, {
+        _type: 'rect',
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+    })
+}
+
+function parsePolygon(node: PolygonNode){
+    return parseCommon(node, {
+        _type: 'rect',
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+    })
+}
+
+function parseStar(node: PolygonNode) {
+    console.log('parseStar', node)
 
     return parseCommon(node, {
         _type: 'rect',
@@ -824,6 +858,8 @@ function parseEllipse(node: EllipseNode) {
         ry: node.height / 2,
     })
 }
+
+
 
 //     90
 // 180     0
@@ -975,6 +1011,12 @@ function getFrame1Json() {
             }
             else if (node.type == 'ELLIPSE') {
                 return parseEllipse(node)
+            }
+            else if (node.type == 'POLYGON') {
+                return parsePolygon(node)
+            }
+            else if (node.type == 'STAR') {
+                return parseStar(node)
             }
             else if (node.type == 'LINE') {
                 return parseLine(node)

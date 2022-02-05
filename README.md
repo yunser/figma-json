@@ -6,6 +6,10 @@
 run npm install --save-dev @figma/plugin-typings.
 
 
+* Figma 使用体验
+  * line 不好用
+  * 只有边框的图形无法拖拽
+  * 
 
 ## Quickstart
 * Run `npm i` to install dependencies.
