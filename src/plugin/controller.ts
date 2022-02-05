@@ -1,4 +1,4 @@
-import toUint8Array from 'base64-to-uint8array'
+// import toUint8Array from 'base64-to-uint8array'
 
 import { uiUtil } from '@yunser/ui-std/dist/helper'
 
@@ -6,6 +6,45 @@ var parse = require('parse-svg-path')
 var translate = require('translate-svg-path')
 var serialize = require('serialize-svg-path')
 
+async function treeMap(treeObj, options: any = {}) {
+
+    const { nodeHandler, childrenKey = 'children', childrenSetKey = 'children' } = options
+
+    async function dealList(children, level, p) {
+        let results: any[] = []
+        for (let child of children) {
+            results.push(await dealObj(child, level, p))
+            // content += (indent ? ('\n' + textLoop(indent, level)) : '') + 
+        }
+        // content += (indent ? (textLoop(indent, level) + '\n') : '')
+        return results
+    }
+
+    async function dealObj(obj, level = 0, parent) {
+        let children: any[] = []
+        if (obj[childrenKey] && obj[childrenKey].length) {
+            children = await dealList(obj[childrenKey], level + 1, obj)
+        }
+
+
+
+        let result = await nodeHandler(obj, { level, parent, children })
+        if (children.length) {
+            result[childrenSetKey] = children
+        }
+        return result
+        // let attrContent = ''
+        // if (obj.attr) {
+        //     for (let key in obj.attr) {
+        //         attrContent += ` ${key}="${obj.attr[key]}"`
+        //     }
+        // }
+
+        // return result
+    }
+
+    return dealObj(treeObj, 0, null)
+}
 
 // console.log('uiUtil', uiUtil)
 
@@ -638,17 +677,24 @@ function parseCommon(node, extra) {
     }
 }
 
-function parseRect(node: RectangleNode) {
+async function parseRect(node: RectangleNode) {
     console.log('parseRect', node.name, node, node.strokes)
 
-    if (node.fills[0]?.type == 'IMAGE') {
+    const fill0 = node.fills[0]
+    if (fill0?.type == 'IMAGE') {
+        const img = figma.getImageByHash(fill0.imageHash)
+
+        const u8arr = await img.getBytesAsync()
+        const base64 = figma.base64Encode(u8arr)
+        console.log('base64', base64)
+
         return parseCommon(node, {
             _type: 'image',
             x: node.x,
             y: node.y,
             width: node.width,
             height: node.height,
-            href: "data:image/png;base64,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",
+            href: `data:image/png;base64,${base64}`,
         })
     }
     return parseCommon(node, {
@@ -933,7 +979,7 @@ function someAttr(obj, attrs) {
     return newObj
 }
 
-function getFrame1Json() {
+async function getFrame1Json() {
     console.log('figma', figma)
     const page1 = figma.root.children[0]
 
@@ -944,10 +990,10 @@ function getFrame1Json() {
     console.log('frame1', frame1)
     console.log('frame1.type', frame1.type)
 
-    const resultJson = uiUtil.treeMap(frame1, {
+    const resultJson = await treeMap(frame1, {
         childrenKey: 'children',
         childrenSetKey: '_children',
-        nodeHandler(node, { children }) {
+        async nodeHandler(node, { children }) {
 
             console.log('nodeHandler2', node.type, node)
 
@@ -962,7 +1008,7 @@ function getFrame1Json() {
                 return parseGroup(node)
             }
             else if (node.type == 'RECTANGLE') {
-                return parseRect(node)
+                return await parseRect(node)
             }
             else if (node.type == 'VECTOR') {
                 return parseVector(node)
@@ -997,7 +1043,7 @@ function getFrame1Json() {
     return resultJson
 }
 
-figma.ui.onmessage = msg => {
+figma.ui.onmessage = async msg => {
     // One way of distinguishing between different types of messages sent from
     // your HTML page is to use an object with a "type" property like this.
 
@@ -1022,7 +1068,7 @@ figma.ui.onmessage = msg => {
     if (msg.type === 'create-element') {
         // return
         console.clear()
-        const root = getFrame1Json()
+        const root = await getFrame1Json()
         console.log('ROOT?', root)
 
         console.log('figma', figma)
@@ -1088,8 +1134,13 @@ figma.ui.onmessage = msg => {
                 if (node._type == 'image') {
                     console.log('nodeHandler image')
                     // return createRect(node)
-                    let imageHash = figma.createImage(toUint8Array(node.href.replace(/^data:image\/(png|jpg);base64,/, ""))).hash
-                    console.log('nodeHandler image2', imageHash)
+                    // const u8arr = toUint8Array(node.href.replace(/^data:image\/(png|jpg);base64,/, ""))
+                    const u8arr = figma.base64Decode(node.href.replace(/^data:image\/(png|jpg);base64,/, ""))
+                    console.log('nodeHandler.u8arr', u8arr)
+                    const img = figma.createImage(u8arr)
+                    console.log('nodeHandler.img', img)
+                    let imageHash = img.hash
+                    console.log('nodeHandler imageHash', imageHash)
                     const _node = figma.createRectangle()
 
                     console.log('createRectangle')
