@@ -4,6 +4,10 @@ import { uiUtil } from '@yunser/ui-std/dist/helper'
 
 // console.log('uiUtil', uiUtil)
 
+function breakPoint() {
+    throw new Error('breakPoint')
+}
+
 let ff2: PluginAPI
 
 function setBorder(_node, node) {
@@ -717,15 +721,19 @@ function parseVector(node: VectorNode) {
 
 function parseEllipse(node: EllipseNode) {
     console.log('parseEllipse', node)
-    return {
-        _type: 'rect',
-        id: node.id,
-        name: node.name,
+    const rect = {
         x: node.x,
         y: node.y,
         width: node.width,
         height: node.height,
     }
+    return parseCommon(node, {
+        _type: 'ellipse',
+        cx: node.x + node.width / 2,
+        cy: node.y + node.height / 2,
+        rx: node.width / 2,
+        ry: node.height / 2,
+    })
 }
 
 function parseLine(node: LineNode) {
@@ -760,7 +768,7 @@ function getFrame1Json() {
     console.log('frame1', frame1)
     console.log('frame1.type', frame1.type)
 
-    const resultJson = uiUtil.treeMap(page1, {
+    const resultJson = uiUtil.treeMap(frame1, {
         childrenKey: 'children',
         childrenSetKey: '_children',
         nodeHandler(node, { children }) {
@@ -828,7 +836,8 @@ figma.ui.onmessage = msg => {
         if (frame2) {
             frame2.remove()
         }
-        // console.log('frame2', frame2)
+        console.log('frame2', frame2)
+        // breakPoint()
 
         frame2 = figma.createFrame()
         frame2.x = 826
@@ -969,7 +978,7 @@ figma.ui.onmessage = msg => {
                     return { _node }
                 }
                 if (node._type == 'ellipse') {
-                    console.log('nodeHandler ellipse')
+                    console.log('nodeHandler ellipse', node)
 
                     // return createCircle(node)
                     const _node = figma.createEllipse()
