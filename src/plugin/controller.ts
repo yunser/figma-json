@@ -13,6 +13,7 @@ function breakPoint() {
     throw new Error('breakPoint')
 }
 
+// 正多边形
 function getPolygonPoints(center, radius, sides, startAngle = Math.PI * 2) {
     const centerX = center.x
     const centerY = center.y
@@ -24,6 +25,29 @@ function getPolygonPoints(center, radius, sides, startAngle = Math.PI * 2) {
             y: centerY - radius * Math.cos(angle),
         })
         angle += 2 * Math.PI / sides;
+    }
+    return points;
+}
+
+// 
+function getStarPoints(center, radius, sides, innerRadius, startAngle = Math.PI * 2) {
+    const centerX = center.x
+    const centerY = center.y
+    const points = [];
+    let angle = startAngle || 0;
+    for (let i = 0; i < sides; ++i) {
+        points.push({
+            x: centerX + radius * Math.sin(angle),
+            y: centerY - radius * Math.cos(angle),
+        })
+        const nextAngle = angle + 2 * Math.PI / sides
+        const centerAndle = (angle + nextAngle) / 2
+        const centerRadius = radius * innerRadius
+        points.push({
+            x: centerX + centerRadius * Math.sin(centerAndle),
+            y: centerY - centerRadius * Math.cos(centerAndle),
+        })
+        angle = nextAngle
     }
     return points;
 }
@@ -48,6 +72,7 @@ const MathUtil = {
         }
     },
     getPolygonPoints,
+    getStarPoints,
     getPointsBBox(points) {
         let left = points[0].x
         let right = points[0].x
@@ -846,8 +871,8 @@ function parseRect(node: RectangleNode) {
 function parsePolygon(node: PolygonNode){
 
     const edge = node.pointCount
-    console.log('parsePolygon.edge', edge)
-    const angle = (edge - 2) * 180 / edge // 内角
+    // console.log('parsePolygon.edge', edge)
+    // const angle = (edge - 2) * 180 / edge // 内角
 
     
 
@@ -855,19 +880,19 @@ function parsePolygon(node: PolygonNode){
 
     const size = Math.min(node.width, node.height) / 2
 
-    const toWidth = Math.cos(MathUtil.degToRad(angle / 2)) * size * 2
-    console.log('parsePolygon.toWidth', toWidth)
+    // const toWidth = Math.cos(MathUtil.degToRad(angle / 2)) * size * 2
+    // console.log('parsePolygon.toWidth', toWidth)
 
     const points = MathUtil.getPolygonPoints(center, size, edge)
-    console.log('parsePolygon.points', points)
-    const { left, width } = MathUtil.getPointsBBox(points)
-    console.log('parsePolygon.left, width', left, width)
+    // console.log('parsePolygon.points', points)
+    const { left } = MathUtil.getPointsBBox(points)
+    // console.log('parsePolygon.left, width', left, width)
     // breakPoint()
 
     // simple fetch
     // 
     // const scale = node.width / width
-    const ratio = toWidth / Math.min(node.width, node.height)
+    // const ratio = toWidth / Math.min(node.width, node.height)
     const scale = node.width / Math.min(node.width, node.height)
     // const newWith = toWidth * scale
     
@@ -877,34 +902,64 @@ function parsePolygon(node: PolygonNode){
     newPoints = MathUtil.scalePoints(newPoints, scale)
 
     const { width: newWith } = MathUtil.getPointsBBox(newPoints)
-    console.log('parsePolygon.newWith', newWith)
+    // console.log('parsePolygon.newWith', newWith)
 
     newPoints = MathUtil.translatePoints(newPoints, node.x + (node.width - newWith) / 2)
     // newPoints = MathUtil.translatePoints(newPoints, node.x)
 
-    console.log('parsePolygon.newPoints', newPoints)
+    // console.log('parsePolygon.newPoints', newPoints)
 
     return parseCommon(node, {
         _type: 'polygon',
         // points: points,
         points: newPoints,
-        // x: node.x,
-        // y: node.y,
-        // width: node.width,
-        // height: node.height,
     })
 }
 
 function parseStar(node: PolygonNode) {
     console.log('parseStar', node)
 
+    const edge = node.pointCount
+    const center = MathUtil.rectCenter(node)
+    const size = Math.min(node.width, node.height) / 2
+    const points = getStarPoints(center, size, edge, node.innerRadius)
+    // console.log('parsePolygon.points', points)
+    const { left } = MathUtil.getPointsBBox(points)
+    // console.log('parsePolygon.left, width', left, width)
+    // breakPoint()
+
+    // simple fetch
+    // 
+    // const scale = node.width / width
+    // const ratio = toWidth / Math.min(node.width, node.height)
+    const scale = node.width / Math.min(node.width, node.height)
+    // const newWith = toWidth * scale
+
+    // console.log('parsePolygon.newPoints', newPoints)
+
+    let newPoints = MathUtil.translatePoints(points, -left)
+    newPoints = MathUtil.scalePoints(newPoints, scale)
+
+    const { width: newWith } = MathUtil.getPointsBBox(newPoints)
+    // console.log('parsePolygon.newWith', newWith)
+
+    newPoints = MathUtil.translatePoints(newPoints, node.x + (node.width - newWith) / 2)
+    // newPoints = MathUtil.translatePoints(newPoints, node.x)
+
+    // console.log('parsePolygon.newPoints', newPoints)
+
     return parseCommon(node, {
-        _type: 'rect',
-        x: node.x,
-        y: node.y,
-        width: node.width,
-        height: node.height,
+        _type: 'polygon',
+        // points: points,
+        points: newPoints,
     })
+    // return parseCommon(node, {
+    //     _type: 'rect',
+    //     x: node.x,
+    //     y: node.y,
+    //     width: node.width,
+    //     height: node.height,
+    // })
 }
 
 function parseVector(node: VectorNode) {
