@@ -625,11 +625,23 @@ function hex2FigmaColor(sColor) {
 }
 console.log('hex2Rgb', hex2FigmaColor("#f00"))
 
+// function componentToHex(c) {
+//   var hex = c.toString(16);
+//   return hex.length == 1 ? "0" + hex : hex;
+// }
+
+// function rgbToHex(r, g, b) {
+//   return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+// }
+
+// alert(rgbToHex(0, 51, 255)); // #0033ff
+
 function parseFigmaColor(color: RGB) {
     if (!color) {
         return null
     }
-    return `rgb(${color.r * 255}, ${color.g * 255}, ${color.b * 255})`
+    return rgbToHex(Math.ceil(color.r * 255), Math.ceil(color.g * 255), Math.ceil(color.b * 255))
+    // return `rgb(${color.r * 255}, ${color.g * 255}, ${color.b * 255})`
 }
 
 figma.showUI(__html__)
@@ -646,6 +658,8 @@ function parseFrame(node: FrameNode) {
         _type: 'frame',
         id: node.id,
         name: node.name,
+        x: node.x,
+        y: node.y,
         width: node.width,
         height: node.height,
     }
@@ -1004,10 +1018,11 @@ async function getAllJson() {
     return {
         version: '1',
         _type: 'document',
-        pages: await Helper.syncMap(pages, async page => {
+        pages: await Helper.syncMap(pages, async (page: PageNode) => {
             const frames = page.children.filter(item => item.type == 'FRAME')
             return {
                 _type: 'page',
+                name: page.name,
                 _children: await Helper.syncMap(frames, async frame => {
                     return await parseOutFrame(frame)
                     // return {
