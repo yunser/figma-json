@@ -13,6 +13,7 @@
     "@yunser/ui-std": "0.0.29",
     "base64-to-uint8array": "^1.0.0",
     "color": "^3.2.1",
+    "copy-to-clipboard": "^3.3.1",
     "jszip": "^3.7.1",
     "parse-svg-path": "^0.1.2",
     "react": "^17.0.2",

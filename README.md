@@ -28,7 +28,7 @@ This repo is using:
 ## Refer
 
 * https://www.figma.com/plugin-docs/api/GroupNode/
-
+* https://github.com/nirsky/figma-plugin-react-template
 
 ## 其他说明
 

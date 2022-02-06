@@ -94,6 +94,20 @@ function getStarPoints(center, radius, sides, innerRadius, startAngle = Math.PI 
     return points;
 }
 
+const Helper = {
+    syncMap: async (arr, callback) => {
+        const result = []
+        let idx = 0
+        for (let item of arr) {
+            result.push(await callback(item, idx++))
+        }
+        // return Promise.all(arr.map(async (item, index) => {
+        //     await callback(item, index);
+        //     // console.log("a");
+        // }));
+        return result
+    }
+}
 const MathUtil = {
     distance(pt, lastPt) {
         return Math.sqrt(Math.pow(lastPt.x - pt.x, 2) + Math.pow(lastPt.y - pt.y, 2))
@@ -984,17 +998,43 @@ function someAttr(obj, attrs) {
     return newObj
 }
 
+
+async function getAllJson() {
+    const pages = figma.root.children
+    return {
+        version: '1',
+        _type: 'document',
+        pages: await Helper.syncMap(pages, async page => {
+            const frames = page.children.filter(item => item.type == 'FRAME')
+            return {
+                _type: 'page',
+                _children: await Helper.syncMap(frames, async frame => {
+                    return await parseOutFrame(frame)
+                    // return {
+                    //     _type: 'frame',
+                    //     _children: await parseOutFrame(frame)
+                    // }
+                }),
+            }
+        }),
+    }
+}
+
 async function getFrame1Json() {
     console.log('figma', figma)
-    const page1 = figma.root.children[0]
+    const page1_will = figma.root.children[0]
 
     // (window as any)['_page1'] = 12
 
-    console.log('page1', page1)
-    const frame1 = page1.children.find(item => item.name == 'frame-1')
+    console.log('page1', page1_will)
+    const frame1 = page1_will.children.find(item => item.name == 'frame-1')
+    return await parseOutFrame(frame1)
+    
+}
+
+async function parseOutFrame(frame1) {
     console.log('frame1', frame1)
     console.log('frame1.type', frame1.type)
-
     const resultJson = await treeMap(frame1, {
         childrenKey: 'children',
         childrenSetKey: '_children',
@@ -1048,7 +1088,13 @@ async function getFrame1Json() {
     return resultJson
 }
 
+function handleTooltipMsg(msg) {
+// type: "tooltip", data: "copied"
+    figma.notify(msg.data)
+}
+
 figma.ui.onmessage = async msg => {
+    console.log('ui.onmessage', msg)
     // One way of distinguishing between different types of messages sent from
     // your HTML page is to use an object with a "type" property like this.
 
@@ -1057,13 +1103,11 @@ figma.ui.onmessage = async msg => {
     //     child.remove()
     // })
 
-    
-    
-
-
+    if (msg.type == 'tooltip') {
+        handleTooltipMsg(msg)
+    }
     // const nodes: SceneNode[] = [];
-
-    if (msg.type === 'cancel') {
+    else if (msg.type === 'cancel') {
         var blob = new Blob(["Hello, world!"], { type: "text/plain;charset=utf-8" });
         // saveAs(blob, "hello world.txt");
         // figma.closePlugin()
@@ -1083,8 +1127,15 @@ figma.ui.onmessage = async msg => {
 
     }
     if (msg.type === 'create-json') {
-        getFrame1Json()
+        const json = await getAllJson()
+        console.log('json', JSON.stringify(json, null, 4))
         // figma.closePlugin()
+        figma.ui.postMessage({
+            type: 'create-json-callback',
+            message: {
+                json,
+            },
+        })
     }
     if (msg.type === 'create-element') {
         // return
