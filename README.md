@@ -46,3 +46,4 @@ This repo is using:
 
 * 参考
   * https://github.com/nirsky/figma-plugin-react-template
+  * https://github.com/Qix-/color/issues/221

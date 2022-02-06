@@ -1,5 +1,5 @@
 {
-    "name": "Std UI Creator",
+    "name": "Sketch Exporter",
     "id": "2100000000",
     "api": "1.0.0",
     "main": "dist/code.js",

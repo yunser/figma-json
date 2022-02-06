@@ -5,6 +5,9 @@ import { uiUtil } from '@yunser/ui-std/dist/helper'
 var parse = require('parse-svg-path')
 var translate = require('translate-svg-path')
 var serialize = require('serialize-svg-path')
+// import { saveAs } from 'file-saver';
+// var FileSaver = require('file-saver');
+// const JSZip = require('jszip')
 
 async function treeMap(treeObj, options: any = {}) {
 
@@ -1061,7 +1064,23 @@ figma.ui.onmessage = async msg => {
     // const nodes: SceneNode[] = [];
 
     if (msg.type === 'cancel') {
-        figma.closePlugin()
+        var blob = new Blob(["Hello, world!"], { type: "text/plain;charset=utf-8" });
+        // saveAs(blob, "hello world.txt");
+        // figma.closePlugin()
+        // var zip = new JSZip();
+
+        // zip.file("Hello.txt", "Hello World\n");
+
+        // var img = zip.folder("images");
+        // // img.file("smile.gif", imgData, { base64: true });
+
+        // zip.generateAsync({ type: "blob" }).then(function (content) {
+        //     // see FileSaver.js
+        //     console.log('blob', blob)
+        //     // saveAs(content, "example.zip");
+        // });
+
+
     }
     if (msg.type === 'create-json') {
         getFrame1Json()

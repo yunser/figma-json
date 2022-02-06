@@ -9,8 +9,11 @@
     "prettier:format": "prettier --write 'src/**/*.{js,jsx,ts,tsx,css,json}' "
   },
   "dependencies": {
-    "@yunser/ui-std": "^0.0.13-alpha",
+    "@yunser/sketch-lib": "^0.0.4",
+    "@yunser/ui-std": "0.0.29",
     "base64-to-uint8array": "^1.0.0",
+    "color": "^3.2.1",
+    "jszip": "^3.7.1",
     "parse-svg-path": "^0.1.2",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
