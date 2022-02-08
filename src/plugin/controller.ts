@@ -1249,7 +1249,7 @@ function parseStar(node: StarNode) {
     // })
 }
 
-function parseVector(node: VectorNode) {
+function parseVector(node: VectorNode, context) {
     console.log('parseVector', node)
     console.log('parseVector.vectorPaths', node.vectorPaths)
     // console.log('parseVector.xy', node.x, node.y)
@@ -1265,10 +1265,10 @@ function parseVector(node: VectorNode) {
         rect.x = x
         rect.y = y
     }
-    // if (context._frameRect) {
-    //     rect.x = context._frameRect.x + rect.x
-    //     rect.y = context._frameRect.y + rect.y
-    // }
+    if (context._frameRect) {
+        rect.x = context._frameRect.x + rect.x
+        rect.y = context._frameRect.y + rect.y
+    }
 
     // return {
     //     _type: 'rect',
@@ -1596,7 +1596,7 @@ async function parseOutFrame(frame1) {
                 return await parseRect(node, context)
             }
             else if (node.type == 'VECTOR') {
-                return parseVector(node)
+                return parseVector(node, context)
             }
             else if (node.type == 'ELLIPSE') {
                 return parseEllipse(node, context)
