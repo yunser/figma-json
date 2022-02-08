@@ -1009,23 +1009,63 @@ function parseFigamFills(node) {
 
 
 
-function parseCommon(node, extra) {
-    return {
+function parseCommon(node, extra, { context, frameLike = false, style = true }: any = {}) {
+    let rect = {
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+    }
+    if (context) {
+
+        if (context._frameRect) {
+            rect.x = context._frameRect.x + rect.x
+            rect.y = context._frameRect.y + rect.y
+        }
+    
+        if (frameLike) {
+            if (context._frameRect) {
+                context._frameRect = {
+                    x: context._frameRect.x + rect.x,
+                    y: context._frameRect.x + rect.y,
+                    // width: node.width,
+                    // height: node.height,
+                }
+            }
+            else {
+                context._frameRect = {
+                    x: rect.x,
+                    y: rect.y,
+                    // width: node.width,
+                    // height: node.height,
+                }
+            }
+    }
+    }
+
+    let result = {
         id: node.id,
         name: node.name,
         mask: node.isMask,
         locked: node.locked,
         visible: node.visible,
-        ...parseFigamFills(node),
-        // color: parseFigmaColor(node.fills[0]?.color),
-        ...parseEffects(node),
-        border: parseFigmaStoke(node),
         ...extra,
         rotation: node.rotation,
     }
+    
+    if (style) {
+        result = {
+            ...parseFigamFills(node),
+            // color: parseFigmaColor(node.fills[0]?.color),
+            ...parseEffects(node),
+            border: parseFigmaStoke(node),
+            ...result,
+        }
+    }
+    return result
 }
 
-function parseInstance(node: InstanceNode) {
+function parseInstance(node: InstanceNode, context) {
     console.log('parseInstance', node.name, node, node.children)
     console.log('parseInstance.mainComponent', node.mainComponent, node.mainComponent.type) // COMPONENT
 
@@ -1036,10 +1076,14 @@ function parseInstance(node: InstanceNode) {
         width: node.width,
         height: node.height,
         // borderRadius: node.cornerRadius || 0,
+    }, {
+        frameLike: true,
+        context,
+        style: false,
     })
 }
 
-function parseComponent(node: InstanceNode) {
+function parseComponent(node: InstanceNode, context) {
     console.log('parseComponent', node.name, node, node.children)
     // console.log('parseComponent.mainComponent', node.mainComponent, node.mainComponent.type) // COMPONENT
 
@@ -1050,6 +1094,10 @@ function parseComponent(node: InstanceNode) {
         width: node.width,
         height: node.height,
         // borderRadius: node.cornerRadius || 0,
+    }, {
+        frameLike: true,
+        context,
+        style: false,
     })
 }
 
@@ -1089,7 +1137,7 @@ function getRotationXy(rect, rotation) {
 }
 
 async function parseRect(node: RectangleNode, context) {
-    // console.log('parseRect', node.name, node, node.strokes)
+    console.log('parseRect', node.name, node, node.strokes)
 
     const fill0 = node.fills[0]
     if (fill0?.type == 'IMAGE') {
@@ -1115,11 +1163,13 @@ async function parseRect(node: RectangleNode, context) {
         width: node.width,
         height: node.height,
     }
+    console.log('parseRect.rect', rect)
     if (node.rotation) {
         const {x, y} = getRotationXy(rect, node.rotation)
         rect.x = x
         rect.y = y
     }
+    console.log('parseRect._frameRect', context._frameRect)
     if (context._frameRect) {
         rect.x = context._frameRect.x + rect.x
         rect.y = context._frameRect.y + rect.y
@@ -1635,10 +1685,10 @@ async function parseOutFrame(frame1) {
                 return parseBoolean(node)
             }
             else if (node.type == 'INSTANCE') {
-                return parseInstance(node)
+                return parseInstance(node, context)
             }
             else if (node.type == 'COMPONENT') {
-                return parseComponent(node)
+                return parseComponent(node, context)
             }
             
             // return {

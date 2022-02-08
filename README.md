@@ -18,13 +18,13 @@ run npm install --save-dev @figma/plugin-typings.
   * 遮罩
   * frame 遮罩
   * figma font to path
-  * 渐变透明度
-  * 复杂路径的旋转
   * 旋转+frame
   * 扇形
   * frame + ?
   * group + path
   * share style
+  * auto layout
+  * fill visible
 * 写
 
 ## TODO
