@@ -14,6 +14,12 @@ run npm install --save-dev @figma/plugin-typings.
   * 组件
   * 实例
   * 任意填充图片
+  * 旋转等变换
+  * 遮罩
+  * frame 遮罩
+  * figma font to path
+  * 渐变透明度
+  * 复杂路径的旋转
 * 写
 
 ## TODO
@@ -21,6 +27,7 @@ run npm install --save-dev @figma/plugin-typings.
     * 读写分离
     * blur + shadow
     * 遮罩
+    * 旋转等变换
 
 ## 问题
 

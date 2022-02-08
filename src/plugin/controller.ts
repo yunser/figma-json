@@ -14,6 +14,9 @@ var serialize = require('serialize-svg-path')
 
 import matrixInverse from 'matrix-inverse'
 import { text } from 'node:stream/consumers'
+
+import { TreeUtil } from '@yunser/tree-lib'
+
 // import { applyMatrixToPoint } from './applyMatrixToPoint'
 
 const default_font_name = { family: "Roboto", style: "Regular" }
@@ -756,20 +759,49 @@ figma.showUI(__html__)
 // callback. The callback will be passed the "pluginMessage" property of the
 // posted message.
 
-function parseFrame(node: FrameNode, parent) {
+function parseFrame(node: FrameNode, parent, context) {
     console.log('parseFrame', node, node.name, parent)
     // return JSON.parse(JSON.stringify(node))
     // return someAttr(node, 'id', 'name',)
     if (parent) {
         // inner frame
-        return {
-            _type: 'group',
-            id: node.id,
-            name: node.name,
+        let rect = {
             x: node.x,
             y: node.y,
             width: node.width,
             height: node.height,
+        }
+        if (context._frameRect) {
+            rect.x = context._frameRect.x + rect.x
+            rect.y = context._frameRect.y + rect.y
+        }
+
+        if (context._frameRect) {
+            context._frameRect = {
+                x: context._frameRect.x + node.x,
+                y: context._frameRect.x + node.y,
+                // width: node.width,
+                // height: node.height,
+            }
+        }
+        else {
+            context._frameRect = {
+                x: node.x,
+                y: node.y,
+                // width: node.width,
+                // height: node.height,
+            }
+        }
+
+        return {
+            _type: 'group',
+            id: node.id,
+            name: node.name,
+            ...rect,
+            // x: node.x,
+            // y: node.y,
+            // width: node.width,
+            // height: node.height,
             mark: node.isMask, // TODO 封装
         }
     }
@@ -936,6 +968,7 @@ function parseCommon(node, extra) {
         ...parseEffects(node),
         border: parseFigmaStoke(node),
         ...extra,
+        rotation: node.rotation,
     }
 }
 
@@ -967,7 +1000,7 @@ function parseComponent(node: InstanceNode) {
     })
 }
 
-async function parseRect(node: RectangleNode) {
+async function parseRect(node: RectangleNode, context) {
     // console.log('parseRect', node.name, node, node.strokes)
 
     const fill0 = node.fills[0]
@@ -987,12 +1020,25 @@ async function parseRect(node: RectangleNode) {
             href: `data:image/png;base64,${base64}`,
         })
     }
-    return parseCommon(node, {
-        _type: 'rect',
+
+    let rect = {
         x: node.x,
         y: node.y,
         width: node.width,
         height: node.height,
+    }
+    if (context._frameRect) {
+        rect.x = context._frameRect.x + rect.x
+        rect.y = context._frameRect.y + rect.y
+    }
+
+    return parseCommon(node, {
+        _type: 'rect',
+        ...rect,
+        // x: node.x,
+        // y: node.y,
+        // width: node.width,
+        // height: node.height,
         borderRadius: node.cornerRadius || 0,
     })
 }
@@ -1178,20 +1224,27 @@ function parseVector(node: VectorNode) {
     })
 }
 
-function parseEllipse(node: EllipseNode) {
-    console.log('parseEllipse', node)
+function parseEllipse(node: EllipseNode, context) {
+    console.log('parseEllipse', node.name, node)
     const rect = {
         x: node.x,
         y: node.y,
         width: node.width,
         height: node.height,
     }
+    console.log('parseEllipse.rect', rect)
+    if (context._frameRect) {
+        console.log('parseEllipse.isFrame')
+        rect.x = context._frameRect.x + rect.x
+        rect.y = context._frameRect.y + rect.y
+    }
+
     return parseCommon(node, {
         _type: 'ellipse',
-        cx: node.x + node.width / 2,
-        cy: node.y + node.height / 2,
-        rx: node.width / 2,
-        ry: node.height / 2,
+        cx: rect.x + rect.width / 2,
+        cy: rect.y + rect.height / 2,
+        rx: rect.width / 2,
+        ry: rect.height / 2,
     })
 }
 
@@ -1410,16 +1463,16 @@ async function getFrame1Json() {
 async function parseOutFrame(frame1) {
     console.log('frame1', frame1)
     console.log('frame1.type', frame1.type)
-    const resultJson = await treeMap(frame1, {
+    const resultJson = TreeUtil.map(frame1, {
         childrenKey: 'children',
         childrenSetKey: '_children',
-        async nodeHandler(node, { parent }) {
+        async nodeHandler(node, { parent, context }) {
 
             console.log('nodeHandler2', node.type, node.name, node)
 
 
             if (node.type == 'FRAME') {
-                return parseFrame(node, parent)
+                return parseFrame(node, parent, context)
             }
             else if (node.type == 'PAGE') {
                 return parsePage(node)
@@ -1428,13 +1481,13 @@ async function parseOutFrame(frame1) {
                 return parseGroup(node)
             }
             else if (node.type == 'RECTANGLE') {
-                return await parseRect(node)
+                return await parseRect(node, context)
             }
             else if (node.type == 'VECTOR') {
                 return parseVector(node)
             }
             else if (node.type == 'ELLIPSE') {
-                return parseEllipse(node)
+                return parseEllipse(node, context)
             }
             else if (node.type == 'POLYGON') {
                 return parsePolygon(node)
