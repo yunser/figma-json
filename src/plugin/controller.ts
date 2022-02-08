@@ -2,6 +2,9 @@
 
 import { uiUtil } from '@yunser/ui-std/dist/helper'
 
+// import { extractLinearGradientParamsFromTransform } from '@figma-plugin/helpers'
+
+// extractLinearGradientStartEnd
 var parse = require('parse-svg-path')
 var translate = require('translate-svg-path')
 var serialize = require('serialize-svg-path')
@@ -9,6 +12,103 @@ var serialize = require('serialize-svg-path')
 // var FileSaver = require('file-saver');
 // const JSZip = require('jszip')
 
+import matrixInverse from 'matrix-inverse'
+import { text } from 'node:stream/consumers'
+// import { applyMatrixToPoint } from './applyMatrixToPoint'
+
+const default_font_name = { family: "Roboto", style: "Regular" }
+
+function isSame(item, lastItem) {
+    return item.fontSize == lastItem.fontSize
+        && item.color == lastItem.color
+        && item.font.family == lastItem.font.family
+        && item.font.style == lastItem.font.style
+}
+
+function mergeStyles(list) {
+    const results = []
+    let lastItem: any = null
+    let start = 0
+    let text = ''
+
+    list.forEach((item, idx) => {
+        console.log('item', item.text)
+        if (!lastItem) {
+            lastItem = item
+            text = item.text
+        }
+        else {
+            if (isSame(item, lastItem)) {
+                text += item.text
+                console.log('相同')
+            }
+            else {
+                console.log('不同')
+                results.push({
+                    ...lastItem,
+                    text,
+                    start,
+                    end: idx - 1,
+                })
+                lastItem = item
+                text = item.text
+                start = idx
+
+            }
+        }
+    })
+
+    results.push({
+        ...lastItem,
+        text,
+        start,
+        end: list.length - 1,
+    })
+
+    return results
+}
+
+function applyMatrixToPoint(matrix: number[][], point: number[]) {
+    return [
+        point[0] * matrix[0][0] + point[1] * matrix[0][1] + matrix[0][2],
+        point[0] * matrix[1][0] + point[1] * matrix[1][1] + matrix[1][2]
+    ]
+}
+
+/**
+ * This method can extract the x and y positions of the start and end of the linear gradient
+ * (scale is not important here)
+ *
+ * @param shapeWidth number
+ * @param shapeHeight number
+ * @param t Transform
+ */
+export function extractLinearGradientParamsFromTransform(
+	shapeWidth: number,
+	shapeHeight: number,
+	t: Transform
+) {
+	const transform = t.length === 2 ? [...t, [0, 0, 1]] : [...t]
+	const mxInv = matrixInverse(transform)
+	const startEnd = [
+		[0, 0.5],
+		[1, 0.5]
+	].map((p) => applyMatrixToPoint(mxInv, p))
+	return {
+		// start: [startEnd[0][0] * shapeWidth, startEnd[0][1] * shapeHeight],
+		// end: [startEnd[1][0] * shapeWidth, startEnd[1][1] * shapeHeight]
+        from: {
+            x: startEnd[0][0],
+            y: startEnd[0][1]
+        },
+        to: {
+            x: startEnd[1][0],
+            y: startEnd[1][1],
+        }
+	}
+}
+
+// 为了异步，自己实现
 async function treeMap(treeObj, options: any = {}) {
 
     const { nodeHandler, childrenKey = 'children', childrenSetKey = 'children' } = options
@@ -23,13 +123,11 @@ async function treeMap(treeObj, options: any = {}) {
         return results
     }
 
-    async function dealObj(obj, level = 0, parent) {
+    async function dealObj(obj, level = 0, parent, ctx = {}) {
         let children: any[] = []
         if (obj[childrenKey] && obj[childrenKey].length) {
             children = await dealList(obj[childrenKey], level + 1, obj)
         }
-
-
 
         let result = await nodeHandler(obj, { level, parent, children })
         if (children.length) {
@@ -46,7 +144,7 @@ async function treeMap(treeObj, options: any = {}) {
         // return result
     }
 
-    return dealObj(treeObj, 0, null)
+    return dealObj(treeObj, 0, null, {})
 }
 
 // console.log('uiUtil', uiUtil)
@@ -644,16 +742,37 @@ function parseFigmaColor(color: RGB) {
     // return `rgb(${color.r * 255}, ${color.g * 255}, ${color.b * 255})`
 }
 
+function parseRgba(color: RGBA) {
+    if (!color) {
+        return null
+    }
+    return rgbToHex(Math.ceil(color.r * 255), Math.ceil(color.g * 255), Math.ceil(color.b * 255))
+    // return `rgb(${color.r * 255}, ${color.g * 255}, ${color.b * 255})`
+}
+
 figma.showUI(__html__)
 
 // Calls to "parent.postMessage" from within the HTML page will trigger this
 // callback. The callback will be passed the "pluginMessage" property of the
 // posted message.
 
-function parseFrame(node: FrameNode) {
-    console.log('parseFrame', node)
+function parseFrame(node: FrameNode, parent) {
+    console.log('parseFrame', node, node.name, parent)
     // return JSON.parse(JSON.stringify(node))
     // return someAttr(node, 'id', 'name',)
+    if (parent) {
+        // inner frame
+        return {
+            _type: 'group',
+            id: node.id,
+            name: node.name,
+            x: node.x,
+            y: node.y,
+            width: node.width,
+            height: node.height,
+            mark: node.isMask, // TODO 封装
+        }
+    }
     return {
         _type: 'frame',
         id: node.id,
@@ -662,6 +781,7 @@ function parseFrame(node: FrameNode) {
         y: node.y,
         width: node.width,
         height: node.height,
+        mark: node.isMask, // TODO 封装
     }
 }
 
@@ -676,40 +796,179 @@ function parsePage(node: PageNode) {
 }
 
 function parseGroup(node: GroupNode) {
-    return {
+    return parseCommon(node, {
         _type: 'group',
-        // id: node.id,
-        // name: node.name,
-        // width: node.width,
-        // height: node.height,
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+    })
+    // return {
+    //     _type: 'group',
+    //     id: node.id,
+    //     name: node.name,
+    //     x: node.x,
+    //     y: node.y,
+    //     width: node.width,
+    //     height: node.height,
+    //     mark: node.isMask, // TODO 封装
+    // }
+}
+
+function parseEffects(node) {
+    const effect0: Effect = node.effects[0]
+    let shadow = null
+    let innerShadow = null
+    let blur = null
+    if (effect0) {
+        if (effect0.type == 'DROP_SHADOW') {
+            shadow = {
+                x: effect0.offset.x,
+                y: effect0.offset.y,
+                blur: effect0.radius,
+                spread: effect0.spread,
+                color: parseRgba(effect0.color),
+                alpha: effect0.color.a,
+            }
+        }
+        if (effect0.type == 'INNER_SHADOW') {
+            innerShadow = {
+                x: effect0.offset.x,
+                y: effect0.offset.y,
+                blur: effect0.radius,
+                spread: effect0.spread,
+                color: parseRgba(effect0.color),
+                alpha: effect0.color.a,
+            }
+        }
+        if (effect0.type == 'LAYER_BLUR') {
+            blur = effect0.radius
+        }
+
+    }
+
+    return {
+        // effects: 
+        shadow,
+        innerShadow,
+        blur,
     }
 }
 
 function parseFigmaStoke(node) {
     const strokes: Paint[] = node.strokes
-    const stroke: any = strokes[0]
+    const stroke: any = (strokes || [])[0]
     if (!stroke) {
         return undefined
     }
-    console.log('stroke', stroke)
+    // console.log('stroke', stroke)
+    const map = {
+        "CENTER": 'center',
+        "INSIDE": 'inside',
+        "OUTSIDE": 'outside',
+    }
     return {
         color: parseFigmaColor(stroke?.color),
-        width: node.strokeWeight || 1
+        width: node.strokeWeight || 1,
+        position: map[node.strokeAlign],
+        opacity: stroke.opacity,
+        dashed: node.dashPattern,
     }
 }
+
+function parseFigamFills(node) {
+    let color = null
+    let fill = null
+    const fill0 = (node.fills || [])[0]
+    if (!fill0) {
+        return {
+            color,
+            fill,
+        }
+    }
+    if (fill0.type == 'SOLID') {
+        color = parseFigmaColor(fill0.color)
+        return {
+            fill,
+            color,
+        }
+    }
+    if (fill0.type == 'GRADIENT_LINEAR') {
+        const paint: GradientPaint = fill0
+        
+        console.log('gradientTransform', node.name, paint.gradientTransform)
+
+        // const gradientStops: ColorStop[] = fill0.gradientStops
+        const params = extractLinearGradientParamsFromTransform(node.width, node.height, paint.gradientTransform)
+        console.log('gradientTransform.params', node.name, params)
+
+        fill = {
+            type: 'linearGradient',
+            from: params.from,
+            to: params.to,
+            // direction: 0,
+            stops: paint.gradientStops.map(item => {
+                return {
+                    color: parseRgba(item.color),
+                    position: item.position,
+                }
+            }),
+        }
+    }
+    // 
+    return {
+        fill,
+        color,
+    }
+}
+
+
 
 function parseCommon(node, extra) {
     return {
         id: node.id,
         name: node.name,
-        color: parseFigmaColor(node.fills[0]?.color),
+        mask: node.isMask,
+        locked: node.locked,
+        visible: node.visible,
+        ...parseFigamFills(node),
+        // color: parseFigmaColor(node.fills[0]?.color),
+        ...parseEffects(node),
         border: parseFigmaStoke(node),
         ...extra,
     }
 }
 
+function parseInstance(node: InstanceNode) {
+    console.log('parseInstance', node.name, node, node.children)
+    console.log('parseInstance.mainComponent', node.mainComponent, node.mainComponent.type) // COMPONENT
+
+    return parseCommon(node, {
+        _type: 'group',
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+        // borderRadius: node.cornerRadius || 0,
+    })
+}
+
+function parseComponent(node: InstanceNode) {
+    console.log('parseComponent', node.name, node, node.children)
+    // console.log('parseComponent.mainComponent', node.mainComponent, node.mainComponent.type) // COMPONENT
+
+    return parseCommon(node, {
+        _type: 'group',
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+        // borderRadius: node.cornerRadius || 0,
+    })
+}
+
 async function parseRect(node: RectangleNode) {
-    console.log('parseRect', node.name, node, node.strokes)
+    // console.log('parseRect', node.name, node, node.strokes)
 
     const fill0 = node.fills[0]
     if (fill0?.type == 'IMAGE') {
@@ -717,7 +976,7 @@ async function parseRect(node: RectangleNode) {
 
         const u8arr = await img.getBytesAsync()
         const base64 = figma.base64Encode(u8arr)
-        console.log('base64', base64)
+        // console.log('base64', base64)
 
         return parseCommon(node, {
             _type: 'image',
@@ -734,10 +993,31 @@ async function parseRect(node: RectangleNode) {
         y: node.y,
         width: node.width,
         height: node.height,
+        borderRadius: node.cornerRadius || 0,
     })
 }
 
-function parsePolygon(node: PolygonNode){
+function parseBoolean(node: BooleanOperationNode) {
+    return parseCommon(node, {
+        _type: 'boolOp',
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+        opType: node.booleanOperation,
+    })
+    // return {
+    //     _type: 'boolOp',
+    //     x: node.x,
+    //     y: node.y,
+    //     width: node.width,
+    //     height: node.height,
+    //     // borderRadius: node.cornerRadius || 0,
+    //     opType: node.booleanOperation,
+    // }
+}
+
+function parsePolygon(node: PolygonNode) {
 
     const edge = node.pointCount
     // console.log('parsePolygon.edge', edge)
@@ -786,7 +1066,7 @@ function parsePolygon(node: PolygonNode){
 }
 
 function parseStar(node: StarNode) {
-    console.log('parseStar', node)
+    // console.log('parseStar', node)
 
     const edge = node.pointCount
     const center = MathUtil.rectCenter(node)
@@ -846,29 +1126,51 @@ function parseVector(node: VectorNode) {
     //     width: node.width,
     //     height: node.height,
     // }
-    return {
-        _type: 'group',
-        _children: node.vectorPaths.map(path => {
-            console.log('parseVector.path', path)
+    let data = ''
 
-            const newD = serialize(translate(parse(path.data), node.x, node.y))
+    // const 
+    node.vectorPaths.map(path => {
+        console.log('parseVector.path', path)
 
-            return parseCommon(node, {
-                // _type: 'rect',
-                // x: node.x,
-                // y: node.y,
-                // width: node.width,
-                // height: node.height,
-                _type: 'path',
-                d: newD,
-            })
-            // return {
-            // }
-        }),   
-    }
+        const newD = serialize(translate(parse(path.data), node.x, node.y))
+        data += newD
+        // return parseCommon(node, {
+        //     // _type: 'rect',
+        //     // x: node.x,
+        //     // y: node.y,
+        //     // width: node.width,
+        //     // height: node.height,
+        //     _type: 'path',
+        //     d: newD,
+        // })
+        // return {
+        // }
+    })
+
+    // return {
+    //     _type: 'group',
+    //     // name: node.name,
+    //     _children: node.vectorPaths.map(path => {
+    //         console.log('parseVector.path', path)
+
+    //         const newD = serialize(translate(parse(path.data), node.x, node.y))
+
+    //         return parseCommon(node, {
+    //             // _type: 'rect',
+    //             // x: node.x,
+    //             // y: node.y,
+    //             // width: node.width,
+    //             // height: node.height,
+    //             _type: 'path',
+    //             d: newD,
+    //         })
+    //         // return {
+    //         // }
+    //     }),   
+    // }
     return parseCommon(node, {
         _type: 'path',
-        d: 'M 0 0 L 100, 100 L 100 0 Z'
+        d: data,
         // cx: node.x + node.width / 2,
         // cy: node.y + node.height / 2,
         // rx: node.width / 2,
@@ -993,15 +1295,77 @@ function parseLine(node: LineNode) {
 }
 
 function parseText(node: TextNode) {
-    return parseCommon(node, {
+    console.log('parseText', node)
+    console.log('parseText.characters', node.characters)
+    // console.log('parseText.fontName', node.fontName)
+    console.log('parseText.fillGeometry', node.fillGeometry)
+    // console.log('parseText.fontSize', node.fontSize)
+    // console.log('parseText.insertCharacters', node.insertCharacters)
+    // const allTextNodes = figma.root.findAllWithCriteria({
+    //     types: ["TEXT"],
+    // })
+    // console.log('parseText.allTextNodes', allTextNodes)
+    // const fonts = node.getRangeAllFontNames(0, node.characters.length)
+    // console.log('parseText.fonts', fonts)
+    const subTexts = []
+    const fullText = node.characters
+    for (let i = 0; i < fullText.length; i++) {
+        const fonts = node.getRangeAllFontNames(i, i + 1)
+        const fontSize = node.getRangeFontSize(i, i + 1)
+        console.log('fontSizes', fontSize)
+        const fills = node.getRangeFills(i, i + 1)
+        subTexts.push({
+            text: fullText.charAt(i),
+            font: fonts[0],
+            fontSize: fontSize,
+            color: parseFigmaColor(fills[0].color),
+        })
+    }
+    console.log('parseText.subTexts', JSON.stringify(subTexts, null ,4))
+
+
+    
+    // {
+    //     family: "zcool-gdh"
+    //     style: "Regular"
+    // }
+
+    // node.getStyledTextSegments(0, )
+
+    console.log('parseText.rich_before')
+    const rich = mergeStyles(subTexts)
+    console.log('parseText.rich', rich)
+
+
+    const alignMap = {
+        'LEFT': 'left',
+        'CENTER': 'center',
+        'RIGHT': 'right',
+        // textAlignHorizontal: "LEFT" | "CENTER" | "RIGHT" | "JUSTIFIED"
+    }
+
+    // const font = node.fontName != figma.mixed ? node.fontName : { family: "Roboto", style: "Regular" };
+
+    
+    const result = parseCommon(node, {
         _type: 'text',
         text: node.characters,
         x: node.x,
         y: node.y,
-        textSize: node.fontSize,
+        width: node.width,
+        height: node.height,
+        textSize: node.fontSize == figma.mixed ? undefined : node.fontSize,
+        fontFamily: (node.fontName as any).family, // TODO
+        align: alignMap[node.textAlignHorizontal],
+        rich,
+        // characters
+        // "fontFamily": {
+        //     "family": "Roboto",
+        //     "style": "Regular"
+        // }
     })
-    // return {
-    // }
+    console.log('parseText.result', result)
+    return result
 }
 
 function someAttr(obj, attrs) {
@@ -1012,7 +1376,7 @@ function someAttr(obj, attrs) {
     return newObj
 }
 
-
+// cjh
 async function getAllJson() {
     const pages = figma.root.children
     return {
@@ -1025,10 +1389,6 @@ async function getAllJson() {
                 name: page.name,
                 _children: await Helper.syncMap(frames, async frame => {
                     return await parseOutFrame(frame)
-                    // return {
-                    //     _type: 'frame',
-                    //     _children: await parseOutFrame(frame)
-                    // }
                 }),
             }
         }),
@@ -1053,13 +1413,13 @@ async function parseOutFrame(frame1) {
     const resultJson = await treeMap(frame1, {
         childrenKey: 'children',
         childrenSetKey: '_children',
-        async nodeHandler(node, { children }) {
+        async nodeHandler(node, { parent }) {
 
-            console.log('nodeHandler2', node.type, node)
+            console.log('nodeHandler2', node.type, node.name, node)
 
 
             if (node.type == 'FRAME') {
-                return parseFrame(node)
+                return parseFrame(node, parent)
             }
             else if (node.type == 'PAGE') {
                 return parsePage(node)
@@ -1088,6 +1448,16 @@ async function parseOutFrame(frame1) {
             else if (node.type == 'TEXT') {
                 return parseText(node)
             }
+            else if (node.type == 'BOOLEAN_OPERATION') {
+                return parseBoolean(node)
+            }
+            else if (node.type == 'INSTANCE') {
+                return parseInstance(node)
+            }
+            else if (node.type == 'COMPONENT') {
+                return parseComponent(node)
+            }
+            
             // return {
             //     type: node.type,
             //     ...JSON.parse(JSON.stringify(node)),
@@ -1143,7 +1513,8 @@ figma.ui.onmessage = async msg => {
     }
     if (msg.type === 'create-json') {
         const json = await getAllJson()
-        console.log('json', JSON.stringify(json, null, 4))
+        console.log('json_result0', json)
+        console.log('json_result', JSON.stringify(json, null, 4))
         // figma.closePlugin()
         figma.ui.postMessage({
             type: 'create-json-callback',

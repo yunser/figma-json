@@ -1,6 +1,6 @@
 # figma-json
 
-导入导出 Std UI
+* 导入导出 Std UI
 
 根据 [Std UI JSON](https://github.com/yunser/json-ui) 生成形状的 Figma 插件。
 run npm install --save-dev @figma/plugin-typings.
@@ -8,7 +8,27 @@ run npm install --save-dev @figma/plugin-typings.
 
 * Figma 使用体验
   * line 不好用
-  * 
+  * 复合图形
+
+* 读
+  * 组件
+  * 实例
+  * 任意填充图片
+* 写
+
+## TODO
+    * 完成情况
+    * 读写分离
+    * blur + shadow
+    * 遮罩
+
+## 问题
+
+* Figma 和 Sketch 模糊实现原理不一致，转换后效果不同。
+* 其他不一致
+* 文本位置不对。
+* 所有的图形必须在 frame 下
+
 
 ## Quickstart
 * Run `npm i` to install dependencies.
@@ -32,7 +52,7 @@ This repo is using:
 
 ## 其他说明
 
-* 由于 Figma 的限制，如果分组的子节点数量为 0，分组本身不会生成。
+* 由于 Figma 的限制（不允许存在空的分组节点），如果分组的子节点数量为 0，分组本身不会生成。
 
 
 ## 未解决的问题

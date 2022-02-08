@@ -9,6 +9,7 @@
     "prettier:format": "prettier --write 'src/**/*.{js,jsx,ts,tsx,css,json}' "
   },
   "dependencies": {
+    "@figma-plugin/helpers": "^0.15.2",
     "@yunser/sketch-lib": "^0.0.4",
     "@yunser/ui-std": "0.0.29",
     "base64-to-uint8array": "^1.0.0",
