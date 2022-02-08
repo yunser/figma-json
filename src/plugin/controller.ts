@@ -1460,9 +1460,9 @@ function parseLine(node: LineNode) {
     
 }
 
-function parseText(node: TextNode) {
+function parseText(node: TextNode, context) {
     console.log('parseText', node)
-    console.log('parseText.characters', node.characters)
+    // console.log('parseText.characters', node.characters)
     // console.log('parseText.fontName', node.fontName)
     console.log('parseText.fillGeometry', node.fillGeometry)
     // console.log('parseText.fontSize', node.fontSize)
@@ -1473,6 +1473,22 @@ function parseText(node: TextNode) {
     // console.log('parseText.allTextNodes', allTextNodes)
     // const fonts = node.getRangeAllFontNames(0, node.characters.length)
     // console.log('parseText.fonts', fonts)
+    let rect = {
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+    }
+    if (node.rotation) {
+        const { x, y } = getRotationXy(rect, node.rotation)
+        rect.x = x
+        rect.y = y
+    }
+    if (context._frameRect) {
+        rect.x = context._frameRect.x + rect.x
+        rect.y = context._frameRect.y + rect.y
+    }
+
     const subTexts = []
     const fullText = node.characters
     for (let i = 0; i < fullText.length; i++) {
@@ -1516,10 +1532,11 @@ function parseText(node: TextNode) {
     const result = parseCommon(node, {
         _type: 'text',
         text: node.characters,
-        x: node.x,
-        y: node.y,
-        width: node.width,
-        height: node.height,
+        ...rect,
+        // x: node.x,
+        // y: node.y,
+        // width: node.width,
+        // height: node.height,
         textSize: node.fontSize == figma.mixed ? undefined : node.fontSize,
         fontFamily: (node.fontName as any).family, // TODO
         align: alignMap[node.textAlignHorizontal],
@@ -1612,7 +1629,7 @@ async function parseOutFrame(frame1) {
                 return parseLine(node)
             }
             else if (node.type == 'TEXT') {
-                return parseText(node)
+                return parseText(node, context)
             }
             else if (node.type == 'BOOLEAN_OPERATION') {
                 return parseBoolean(node)

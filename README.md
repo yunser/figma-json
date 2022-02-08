@@ -22,8 +22,9 @@ run npm install --save-dev @figma/plugin-typings.
   * 复杂路径的旋转
   * 旋转+frame
   * 扇形
-  * frame + path
+  * frame + ?
   * group + path
+  * share style
 * 写
 
 ## TODO
@@ -32,6 +33,7 @@ run npm install --save-dev @figma/plugin-typings.
     * blur + shadow
     * 遮罩
     * 旋转等变换
+    * 太大时，Sketch 无法打开
 
 ## 问题
 
