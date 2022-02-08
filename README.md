@@ -22,6 +22,8 @@ run npm install --save-dev @figma/plugin-typings.
   * 复杂路径的旋转
   * 旋转+frame
   * 扇形
+  * frame + path
+  * group + path
 * 写
 
 ## TODO
