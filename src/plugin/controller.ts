@@ -1052,6 +1052,41 @@ function parseComponent(node: InstanceNode) {
     })
 }
 
+function getRotationXy(rect, rotation) {
+    const length = MathUtil.gougu(rect.width / 2, rect.height / 2)
+    console.log('parseRect.length', length)
+    const topLeft = {
+        x: rect.x,
+        y: rect.y
+    }
+    const { width, height } = rect
+    console.log('parseRect.topLeft', topLeft)
+    //    90
+    // 180    0
+    //    -90
+    // =>
+    //    270
+    // 180    0
+    //     90
+    function getRelAngle(rotation) {
+        return rotation * -1
+        // if (rotation <= 0) {
+        // }
+        // return 180
+
+        // return -45
+    }
+    const relAngle = getRelAngle(rotation)
+    const topCenter = MathUtil.getPtByCenterAndAngle(topLeft, relAngle, width / 2)
+    console.log('parseRect.topCenter', topCenter)
+    const center = MathUtil.getPtByCenterAndAngle(topCenter, relAngle + 90, height / 2)
+    console.log('parseRect.center', center)
+    const x = center.x - width / 2
+    const y = center.y - height / 2
+    console.log('parseRect.xy', rect.x, rect.y)
+    return {x, y}
+}
+
 async function parseRect(node: RectangleNode, context) {
     // console.log('parseRect', node.name, node, node.strokes)
 
@@ -1080,37 +1115,40 @@ async function parseRect(node: RectangleNode, context) {
         height: node.height,
     }
     if (node.rotation) {
-        const length = MathUtil.gougu(rect.width / 2, rect.height / 2)
-        console.log('parseRect.length', length)
-        const topLeft = {
-            x: rect.x,
-            y: rect.y
-        }
-        const { width, height } = node
-        console.log('parseRect.topLeft', topLeft)
-        //    90
-        // 180    0
-        //    -90
-        // =>
-        //    270
-        // 180    0
-        //     90
-        function getRelAngle(rotation) {
-            return rotation * -1
-            // if (rotation <= 0) {
-            // }
-            // return 180
+        const {x, y} = getRotationXy(rect, node.rotation)
+        rect.x = x
+        rect.y = y
+        // const length = MathUtil.gougu(rect.width / 2, rect.height / 2)
+        // console.log('parseRect.length', length)
+        // const topLeft = {
+        //     x: rect.x,
+        //     y: rect.y
+        // }
+        // const { width, height } = node
+        // console.log('parseRect.topLeft', topLeft)
+        // //    90
+        // // 180    0
+        // //    -90
+        // // =>
+        // //    270
+        // // 180    0
+        // //     90
+        // function getRelAngle(rotation) {
+        //     return rotation * -1
+        //     // if (rotation <= 0) {
+        //     // }
+        //     // return 180
             
-            // return -45
-        }
-        const relAngle = getRelAngle(node.rotation)
-        const topCenter = MathUtil.getPtByCenterAndAngle(topLeft, relAngle, width / 2)
-        console.log('parseRect.topCenter', topCenter)
-        const center = MathUtil.getPtByCenterAndAngle(topCenter, relAngle + 90, height / 2)
-        console.log('parseRect.center', center)
-        rect.x = center.x - width / 2
-        rect.y = center.y - height / 2
-        console.log('parseRect.xy', rect.x, rect.y)
+        //     // return -45
+        // }
+        // const relAngle = getRelAngle(node.rotation)
+        // const topCenter = MathUtil.getPtByCenterAndAngle(topLeft, relAngle, width / 2)
+        // console.log('parseRect.topCenter', topCenter)
+        // const center = MathUtil.getPtByCenterAndAngle(topCenter, relAngle + 90, height / 2)
+        // console.log('parseRect.center', center)
+        // rect.x = center.x - width / 2
+        // rect.y = center.y - height / 2
+        // console.log('parseRect.xy', rect.x, rect.y)
         // const center = {
         //     x: 200,
         //     y: 200,
@@ -1327,6 +1365,11 @@ function parseEllipse(node: EllipseNode, context) {
         height: node.height,
     }
     console.log('parseEllipse.rect', rect)
+    if (node.rotation) {
+        const { x, y } = getRotationXy(rect, node.rotation)
+        rect.x = x
+        rect.y = y
+    }
     if (context._frameRect) {
         console.log('parseEllipse.isFrame')
         rect.x = context._frameRect.x + rect.x
