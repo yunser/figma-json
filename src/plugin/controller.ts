@@ -995,6 +995,7 @@ function parseFigamFills(node) {
                 return {
                     color: parseRgba(item.color),
                     position: item.position,
+                    alpha: item.color.a,
                 }
             }),
         }
