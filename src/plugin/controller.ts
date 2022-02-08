@@ -17,9 +17,13 @@ import { text } from 'node:stream/consumers'
 
 import { TreeUtil } from '@yunser/tree-lib'
 
+console.clear()
+
 // import { applyMatrixToPoint } from './applyMatrixToPoint'
 
 const default_font_name = { family: "Roboto", style: "Regular" }
+
+
 
 function isSame(item, lastItem) {
     return item.fontSize == lastItem.fontSize
@@ -275,10 +279,58 @@ const MathUtil = {
                 y: pt.y,
             }
         })
-    }
+    },
+    //    270
+    // 180    0
+    //     90
+    getPtByAngle(deg, radius) {
+        // let theta = (n - 3) * (Math.PI * 2) / 12;
+        // const deg = 
+        const rad = MathUtil.degToRad(deg)
+        let x = radius * Math.cos(rad);
+        let y = radius * Math.sin(rad);
+        return {
+            x,
+            y,
+        }
+    },
+    getPtByCenterAndAngle(center, deg, radius) {
+        // let theta = (n - 3) * (Math.PI * 2) / 12;
+        // const deg = 
+        const rad = MathUtil.degToRad(deg)
+        let x = radius * Math.cos(rad);
+        let y = radius * Math.sin(rad);
+        return {
+            x: center.x + x,
+            y: center.y + y,
+        }
+    },
 }
 
-let ff2: PluginAPI
+
+function getPt() {
+    for (let deg = 0; deg < 360; deg += 45) {
+        const SIZE = 100
+        // let theta = (n - 3) * (Math.PI * 2) / 12;
+        // const deg = 
+        const rad = MathUtil.degToRad(deg)
+        let x = SIZE * Math.cos(rad);
+        let y = SIZE * Math.sin(rad);
+        console.log('getPt.xy', deg, x.toFixed(8), y.toFixed(8))
+    }
+    // for (var n = 1; n <= 12; n++) {
+    //     const SIZE = 100
+    //     let theta = (n - 3) * (Math.PI * 2) / 12;
+    //     // const deg = 
+    //     const rad = MathUtil.degToRad(deg)
+    //     let x = SIZE * Math.cos(theta);
+    //     let y = SIZE * Math.sin(theta);
+    //     console.log('getPt.xy', x.toFixed(8), y.toFixed(8))
+    //     // let length = (n % 3 === 0) ? 32 : 16
+    // }
+}
+
+getPt()
 
 function setBorder(_node, node) {
     // const strokes: Stor
@@ -1026,6 +1078,48 @@ async function parseRect(node: RectangleNode, context) {
         y: node.y,
         width: node.width,
         height: node.height,
+    }
+    if (node.rotation) {
+        const length = MathUtil.gougu(rect.width / 2, rect.height / 2)
+        console.log('parseRect.length', length)
+        const topLeft = {
+            x: rect.x,
+            y: rect.y
+        }
+        const { width, height } = node
+        console.log('parseRect.topLeft', topLeft)
+        //    90
+        // 180    0
+        //    -90
+        // =>
+        //    270
+        // 180    0
+        //     90
+        function getRelAngle(rotation) {
+            return rotation * -1
+            // if (rotation <= 0) {
+            // }
+            // return 180
+            
+            // return -45
+        }
+        const relAngle = getRelAngle(node.rotation)
+        const topCenter = MathUtil.getPtByCenterAndAngle(topLeft, relAngle, width / 2)
+        console.log('parseRect.topCenter', topCenter)
+        const center = MathUtil.getPtByCenterAndAngle(topCenter, relAngle + 90, height / 2)
+        console.log('parseRect.center', center)
+        rect.x = center.x - width / 2
+        rect.y = center.y - height / 2
+        console.log('parseRect.xy', rect.x, rect.y)
+        // const center = {
+        //     x: 200,
+        //     y: 200,
+        // }
+        
+        // console.log('parseRect.length', length)
+        // console.log('parseRect.center', center)
+        // console.log('parseRect.relativeTransform', node.relativeTransform)
+        // console.log('parseRect.absoluteRenderBounds', node.absoluteRenderBounds)
     }
     if (context._frameRect) {
         rect.x = context._frameRect.x + rect.x

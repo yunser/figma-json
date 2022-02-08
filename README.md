@@ -20,6 +20,7 @@ run npm install --save-dev @figma/plugin-typings.
   * figma font to path
   * 渐变透明度
   * 复杂路径的旋转
+  * 旋转+frame
 * 写
 
 ## TODO
