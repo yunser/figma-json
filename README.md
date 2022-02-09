@@ -25,6 +25,7 @@ run npm install --save-dev @figma/plugin-typings.
   * share style
   * auto layout
   * fill visible
+  * 统一字体
 * 写
 
 ## TODO

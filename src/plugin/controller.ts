@@ -17,6 +17,10 @@ import { text } from 'node:stream/consumers'
 
 import { TreeUtil } from '@yunser/tree-lib'
 
+interface CommonNode {
+    fills: ReadonlyArray<Paint>
+}
+
 console.clear()
 
 // import { applyMatrixToPoint } from './applyMatrixToPoint'
@@ -92,8 +96,8 @@ function applyMatrixToPoint(matrix: number[][], point: number[]) {
  * @param t Transform
  */
 export function extractLinearGradientParamsFromTransform(
-	shapeWidth: number,
-	shapeHeight: number,
+	// shapeWidth: number,
+	// shapeHeight: number,
 	t: Transform
 ) {
 	const transform = t.length === 2 ? [...t, [0, 0, 1]] : [...t]
@@ -743,14 +747,14 @@ console.log('hex2Rgb', hex2FigmaColor("#f00"))
 
 // alert(rgbToHex(0, 51, 255)); // #0033ff
 
-function parseFigmaToStdColor(color: RGBA, opacity) {
+function parseFigmaToStdColor(color: RGB, opacity) {
     if (!color) {
         return null
     }
     return {
         red: color.r,
         green: color.g,
-        blur: color.b,
+        blue: color.b,
         alpha: opacity,
     }
     return rgbToHex(Math.ceil(color.r * 255), Math.ceil(color.g * 255), Math.ceil(color.b * 255))
@@ -934,56 +938,65 @@ function parseFigmaStoke(node) {
     }
 }
 
-function parseFigamFills(node) {
-    let color = null
-    let fill = null
-    const fill0 = (node.fills || [])[0]
-    if (!fill0) {
-        return {
-            color,
-            fill,
-        }
-    }
-    if (fill0.type == 'SOLID') {
-        fill = {
-            type: 'color',
-            color: parseFigmaToStdColor(fill0.color, fill0.opacity)
-            // direction: 0,
-        }
-        // color = parseFigmaColor(fill0.color)
-        return {
-            fill,
-            color,
-        }
-    }
-    if (fill0.type == 'GRADIENT_LINEAR') {
-        const paint: GradientPaint = fill0
-        
-        console.log('gradientTransform', node.name, paint.gradientTransform)
 
-        // const gradientStops: ColorStop[] = fill0.gradientStops
-        const params = extractLinearGradientParamsFromTransform(node.width, node.height, paint.gradientTransform)
-        console.log('gradientTransform.params', node.name, params)
 
-        fill = {
-            type: 'linearGradient',
-            from: params.from,
-            to: params.to,
-            // direction: 0,
-            stops: paint.gradientStops.map(item => {
-                return {
-                    color: parseRgba(item.color),
-                    position: item.position,
-                    alpha: item.color.a,
-                }
-            }),
+function parseFigamFills(node: CommonNode) {
+    // let color = null
+    // let fill = null
+    const fills = (node.fills || []).filter(item => item.type == 'SOLID' || item.type == 'GRADIENT_LINEAR')
+    
+    return fills.map(item => {
+
+        const fill0 = item
+        // if (!fill0) {
+        //     return {
+        //         color,
+        //         fill,
+        //     }
+        // }
+        if (fill0.type == 'SOLID') {
+            return {
+                type: 'color',
+                visible: fill0.visible,
+                color: parseFigmaToStdColor(fill0.color, fill0.opacity),
+                // direction: 0,
+            }
+            // color = parseFigmaColor(fill0.color)
+            // return {
+            //     fill,
+            //     color,
+            // }
         }
-    }
+        if (fill0.type == 'GRADIENT_LINEAR') {
+            const paint: GradientPaint = fill0
+            
+            // console.log('gradientTransform', node.name, paint.gradientTransform)
+    
+            // const gradientStops: ColorStop[] = fill0.gradientStops
+            const params = extractLinearGradientParamsFromTransform(paint.gradientTransform)
+            // console.log('gradientTransform.params', node.name, params)
+    
+            return {
+                type: 'linearGradient',
+                visible: fill0.visible,
+                from: params.from,
+                to: params.to,
+                // direction: 0,
+                stops: paint.gradientStops.map(item => {
+                    return {
+                        color: parseRgba(item.color),
+                        position: item.position,
+                        alpha: item.color.a,
+                    }
+                }),
+            }
+        }
+    })
     // 
-    return {
-        fill,
-        color,
-    }
+    // return {
+    //     fill,
+    //     color,
+    // }
 }
 
 
@@ -1034,7 +1047,7 @@ function parseCommon(node, extra, { context, frameLike = false, style = true }: 
     
     if (style) {
         result = {
-            ...parseFigamFills(node),
+            fills: parseFigamFills(node),
             // color: parseFigmaColor(node.fills[0]?.color),
             ...parseEffects(node),
             border: parseFigmaStoke(node),
