@@ -743,6 +743,20 @@ console.log('hex2Rgb', hex2FigmaColor("#f00"))
 
 // alert(rgbToHex(0, 51, 255)); // #0033ff
 
+function parseFigmaToStdColor(color: RGBA, opacity) {
+    if (!color) {
+        return null
+    }
+    return {
+        red: color.r,
+        green: color.g,
+        blur: color.b,
+        alpha: opacity,
+    }
+    return rgbToHex(Math.ceil(color.r * 255), Math.ceil(color.g * 255), Math.ceil(color.b * 255))
+    // return `rgb(${color.r * 255}, ${color.g * 255}, ${color.b * 255})`
+}
+
 function parseFigmaColor(color: RGB) {
     if (!color) {
         return null
@@ -901,8 +915,8 @@ function parseEffects(node) {
 
 function parseFigmaStoke(node) {
     const strokes: Paint[] = node.strokes
-    const stroke: any = (strokes || [])[0]
-    if (!stroke) {
+    const stroke0: any = (strokes || [])[0]
+    if (!stroke0) {
         return undefined
     }
     // console.log('stroke', stroke)
@@ -912,10 +926,10 @@ function parseFigmaStoke(node) {
         "OUTSIDE": 'outside',
     }
     return {
-        color: parseFigmaColor(stroke?.color),
+        color: parseFigmaColor(stroke0?.color),
         width: node.strokeWeight || 1,
         position: map[node.strokeAlign],
-        opacity: stroke.opacity,
+        opacity: stroke0.opacity,
         dashed: node.dashPattern,
     }
 }
@@ -931,7 +945,12 @@ function parseFigamFills(node) {
         }
     }
     if (fill0.type == 'SOLID') {
-        color = parseFigmaColor(fill0.color)
+        fill = {
+            type: 'color',
+            color: parseFigmaToStdColor(fill0.color, fill0.opacity)
+            // direction: 0,
+        }
+        // color = parseFigmaColor(fill0.color)
         return {
             fill,
             color,
