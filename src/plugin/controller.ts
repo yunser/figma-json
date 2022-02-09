@@ -307,31 +307,6 @@ const MathUtil = {
     },
 }
 
-
-function getPt() {
-    for (let deg = 0; deg < 360; deg += 45) {
-        const SIZE = 100
-        // let theta = (n - 3) * (Math.PI * 2) / 12;
-        // const deg = 
-        const rad = MathUtil.degToRad(deg)
-        let x = SIZE * Math.cos(rad);
-        let y = SIZE * Math.sin(rad);
-        console.log('getPt.xy', deg, x.toFixed(8), y.toFixed(8))
-    }
-    // for (var n = 1; n <= 12; n++) {
-    //     const SIZE = 100
-    //     let theta = (n - 3) * (Math.PI * 2) / 12;
-    //     // const deg = 
-    //     const rad = MathUtil.degToRad(deg)
-    //     let x = SIZE * Math.cos(theta);
-    //     let y = SIZE * Math.sin(theta);
-    //     console.log('getPt.xy', x.toFixed(8), y.toFixed(8))
-    //     // let length = (n % 3 === 0) ? 32 : 16
-    // }
-}
-
-getPt()
-
 function setBorder(_node, node) {
     // const strokes: Stor
     if (node.border) {
@@ -568,28 +543,6 @@ function getPolylinSvg(_node) {
     return node
 }
 
-console.log('svg', uiUtil.svgObj2Xml(getPolygonSvg({
-    "_type": "polygon",
-    "points": [
-        {
-            "x": 50,
-            "y": 100
-        },
-        {
-            "x": 0,
-            "y": 200
-        },
-        {
-            "x": 100,
-            "y": 200
-        }
-    ],
-    "color": "#E56D6D",
-    "border": {
-        "color": "#526BFF",
-        "width": 2
-    }
-})))
 // console.log('getFigmaRotation', getFigmaRotation)
 // 两个点的方向角
 function getAngleBy2Point(a, b) {
@@ -831,7 +784,7 @@ function parseFrame(node: FrameNode, parent, context) {
         if (context._frameRect) {
             context._frameRect = {
                 x: context._frameRect.x + node.x,
-                y: context._frameRect.x + node.y,
+                y: context._frameRect.y + node.y,
                 // width: node.width,
                 // height: node.height,
             }
@@ -850,24 +803,14 @@ function parseFrame(node: FrameNode, parent, context) {
             id: node.id,
             name: node.name,
             ...rect,
-            // x: node.x,
-            // y: node.y,
-            // width: node.width,
-            // height: node.height,
-            mark: node.isMask, // TODO 封装
             children: [
-                {
+                parseCommon(node, {
                     _type: 'rect',
                     id: (node.id || '') + '-' + uid(16),
                     name: (node.name ? (node.name + '-') : '') + 'bg',
                     ...rect,
-                    color: '#f00',
-                    // x: node.x,
-                    // y: node.y,
-                    // width: node.width,
-                    // height: node.height,
-                    // mark: node.isMask, // TODO 封装
-                }
+                    borderRadius: node.cornerRadius || 0,
+                })
             ],
         }
     }
@@ -1103,18 +1046,66 @@ function parseComponent(node: InstanceNode, context) {
     console.log('parseComponent', node.name, node, node.children)
     // console.log('parseComponent.mainComponent', node.mainComponent, node.mainComponent.type) // COMPONENT
 
-    return parseCommon(node, {
-        _type: 'group',
+    let rect = {
         x: node.x,
         y: node.y,
         width: node.width,
         height: node.height,
-        // borderRadius: node.cornerRadius || 0,
+    }
+    if (context._frameRect) {
+        rect.x = context._frameRect.x + rect.x
+        rect.y = context._frameRect.y + rect.y
+    }
+
+    if (context._frameRect) {
+        context._frameRect = {
+            x: context._frameRect.x + node.x,
+            y: context._frameRect.y + node.y,
+            // width: node.width,
+            // height: node.height,
+        }
+    }
+    else {
+        context._frameRect = {
+            x: node.x,
+            y: node.y,
+            // width: node.width,
+            // height: node.height,
+        }
+    }
+
+    return parseCommon(node, {
+        _type: 'group',
+        id: node.id,
+        name: node.name,
+        ...rect,
+        children: [
+            parseCommon(node, {
+                _type: 'rect',
+                id: (node.id || '') + '-' + uid(16),
+                name: (node.name ? (node.name + '-') : '') + 'bg',
+                ...rect,
+                borderRadius: node.cornerRadius || 0,
+            })
+        ],
     }, {
-        frameLike: true,
+        // frameLike: true,
         context,
         style: false,
     })
+
+    // return parseCommon(node, {
+    //     _type: 'group',
+    //     x: node.x,
+    //     y: node.y,
+    //     width: node.width,
+    //     height: node.height,
+    //     // borderRadius: node.cornerRadius || 0,
+    // }, {
+    //     frameLike: true,
+    //     context,
+    //     style: false,
+    // })
 }
 
 function getRotationXy(rect, rotation) {
@@ -1545,11 +1536,13 @@ function parseText(node: TextNode, context) {
         width: node.width,
         height: node.height,
     }
+    console.log('parseText.rect', rect)
     if (node.rotation) {
         const { x, y } = getRotationXy(rect, node.rotation)
         rect.x = x
         rect.y = y
     }
+    console.log('parseText._frameRect', context._frameRect)
     if (context._frameRect) {
         rect.x = context._frameRect.x + rect.x
         rect.y = context._frameRect.y + rect.y
@@ -1560,7 +1553,7 @@ function parseText(node: TextNode, context) {
     for (let i = 0; i < fullText.length; i++) {
         const fonts = node.getRangeAllFontNames(i, i + 1)
         const fontSize = node.getRangeFontSize(i, i + 1)
-        console.log('fontSizes', fontSize)
+        // console.log('fontSizes', fontSize)
         const fills = node.getRangeFills(i, i + 1)
         subTexts.push({
             text: fullText.charAt(i),
@@ -1569,7 +1562,7 @@ function parseText(node: TextNode, context) {
             color: parseFigmaColor(fills[0].color),
         })
     }
-    console.log('parseText.subTexts', JSON.stringify(subTexts, null ,4))
+    // console.log('parseText.subTexts', JSON.stringify(subTexts, null ,4))
 
 
     
@@ -1580,9 +1573,9 @@ function parseText(node: TextNode, context) {
 
     // node.getStyledTextSegments(0, )
 
-    console.log('parseText.rich_before')
+    // console.log('parseText.rich_before')
     const rich = mergeStyles(subTexts)
-    console.log('parseText.rich', rich)
+    // console.log('parseText.rich', rich)
 
 
     const alignMap = {
@@ -1613,7 +1606,7 @@ function parseText(node: TextNode, context) {
         //     "style": "Regular"
         // }
     })
-    console.log('parseText.result', result)
+    // console.log('parseText.result', result)
     return result
 }
 
@@ -1702,7 +1695,8 @@ async function parseOutFrame(frame1) {
                 return parseBoolean(node)
             }
             else if (node.type == 'INSTANCE') {
-                return parseInstance(node, context)
+                // return parseInstance(node, context)
+                return parseComponent(node, context)
             }
             else if (node.type == 'COMPONENT') {
                 return parseComponent(node, context)
@@ -1828,8 +1822,6 @@ figma.ui.onmessage = async msg => {
                     _node.y = node.y
                     _node.resize(node.width, node.height)
                     console.log('rect', _node)
-                    // rect.width = 100
-                    // rect.height = 100
                     setCommon(_node, node)
                     
                     
@@ -1857,8 +1849,6 @@ figma.ui.onmessage = async msg => {
                     _node.y = node.y
                     _node.resize(node.width, node.height)
                     console.log('rect', _node)
-                    // rect.width = 100
-                    // rect.height = 100
                     _node.fills = [
                         { type: "IMAGE", scaleMode: "FIT", imageHash }
                     ]
