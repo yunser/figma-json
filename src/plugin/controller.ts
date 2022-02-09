@@ -30,6 +30,7 @@ function isSame(item, lastItem) {
         && item.color == lastItem.color
         && item.font.family == lastItem.font.family
         && item.font.style == lastItem.font.style
+        && item.lineHeight == lastItem.lineHeight
 }
 
 function mergeStyles(list) {
@@ -1520,8 +1521,9 @@ function parseLine(node: LineNode) {
 function parseText(node: TextNode, context) {
     console.log('parseText', node)
     // console.log('parseText.characters', node.characters)
-    // console.log('parseText.fontName', node.fontName)
+    console.log('parseText.fontName', node.fontName)
     console.log('parseText.fillGeometry', node.fillGeometry)
+    console.log('parseText.letterSpacing', node.letterSpacing)
     // console.log('parseText.fontSize', node.fontSize)
     // console.log('parseText.insertCharacters', node.insertCharacters)
     // const allTextNodes = figma.root.findAllWithCriteria({
@@ -1548,6 +1550,34 @@ function parseText(node: TextNode, context) {
         rect.y = context._frameRect.y + rect.y
     }
 
+    function parseLetterSpacing(letterSpacing: LetterSpacing, fontSize) {
+        if (letterSpacing.unit == 'PIXELS') {
+            return letterSpacing.value
+        }
+        // 'PERCENT'
+        if (fontSize) {
+            return letterSpacing.value / 100 * fontSize
+        }
+        return 0
+        // only unit: "PIXELS" | "PERCENT"
+    }
+
+    function parseLineHeight(lineHeight: LineHeight, fontSize?: any) {
+        if (lineHeight.unit == 'AUTO') {
+            return null
+        }
+        if (lineHeight.unit == 'PIXELS') {
+            return lineHeight.value
+        }
+        if (lineHeight.unit == 'PERCENT') {
+            if (fontSize) {
+                return lineHeight.value / 100 * fontSize
+            }
+            return null
+            // return lineHeight.value
+        }
+    }
+
     const subTexts = []
     const fullText = node.characters
     for (let i = 0; i < fullText.length; i++) {
@@ -1555,10 +1585,12 @@ function parseText(node: TextNode, context) {
         const fontSize = node.getRangeFontSize(i, i + 1)
         // console.log('fontSizes', fontSize)
         const fills = node.getRangeFills(i, i + 1)
+        const lineHeight = node.getRangeLineHeight(i, i + 1)
         subTexts.push({
             text: fullText.charAt(i),
             font: fonts[0],
             fontSize: fontSize,
+            lineHeight: parseLineHeight((lineHeight) as any),
             color: parseFigmaColor(fills[0].color),
         })
     }
@@ -1596,7 +1628,9 @@ function parseText(node: TextNode, context) {
         // y: node.y,
         // width: node.width,
         // height: node.height,
+        letterSpacing: node.letterSpacing == figma.mixed ? undefined : parseLetterSpacing(node.letterSpacing, node.fontSize == figma.mixed ? undefined : node.fontSize),
         textSize: node.fontSize == figma.mixed ? undefined : node.fontSize,
+        lineHeight: node.lineHeight == figma.mixed ? undefined : parseLineHeight(node.lineHeight, node.fontSize == figma.mixed ? undefined : node.fontSize),
         fontFamily: (node.fontName as any).family, // TODO
         align: alignMap[node.textAlignHorizontal],
         rich,
