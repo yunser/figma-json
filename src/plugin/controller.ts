@@ -857,8 +857,8 @@ function parsePage(node: PageNode) {
     }
 }
 
-function parseGroup(node: GroupNode) {
-    return parseCommon(node, {
+async function parseGroup(node: GroupNode) {
+    return await parseCommon(node, {
         _type: 'group',
         x: node.x,
         y: node.y,
@@ -940,16 +940,16 @@ function parseFigmaStoke(node) {
 
 
 
-function parseFigamFills(node: CommonNode) {
+async function parseFigamFills(node: CommonNode) {
     // let color = null
     // let fill = null
     if (node.fills == figma.mixed) {
         return []
     }
     console.log('node.fills', node.fills, node)
-    const fills = (node.fills || []).filter(item => item.type == 'SOLID' || item.type == 'GRADIENT_LINEAR')
+    const fills = (node.fills || []).filter(item => item.type == 'SOLID' || item.type == 'GRADIENT_LINEAR' || item.type == 'IMAGE')
     
-    return fills.map(item => {
+    return await Helper.syncMap(fills, async (item) => {
 
         const fill0 = item
         // if (!fill0) {
@@ -971,7 +971,19 @@ function parseFigamFills(node: CommonNode) {
             //     color,
             // }
         }
-        if (fill0.type == 'GRADIENT_LINEAR') {
+        if (fill0.type == 'IMAGE') {
+            const img = figma.getImageByHash(fill0.imageHash)
+
+            const u8arr = await img.getBytesAsync()
+            const base64 = figma.base64Encode(u8arr)
+            
+            return {
+                type: 'image',
+                visible: fill0.visible,
+                image: base64,
+            }
+        }
+        else if (fill0.type == 'GRADIENT_LINEAR') {
             const paint: GradientPaint = fill0
             
             // console.log('gradientTransform', node.name, paint.gradientTransform)
@@ -1005,7 +1017,7 @@ function parseFigamFills(node: CommonNode) {
 
 
 
-function parseCommon(node, extra, { context, frameLike = false, style = true }: any = {}) {
+async function parseCommon(node, extra, { context, frameLike = false, style = true }: any = {}) {
     let rect = {
         x: node.x,
         y: node.y,
@@ -1051,7 +1063,7 @@ function parseCommon(node, extra, { context, frameLike = false, style = true }: 
     
     if (style) {
         result = {
-            fills: parseFigamFills(node),
+            fills: await parseFigamFills(node),
             // color: parseFigmaColor(node.fills[0]?.color),
             ...parseEffects(node),
             border: parseFigmaStoke(node),
@@ -1061,25 +1073,25 @@ function parseCommon(node, extra, { context, frameLike = false, style = true }: 
     return result
 }
 
-function parseInstance(node: InstanceNode, context) {
-    console.log('parseInstance', node.name, node, node.children)
-    console.log('parseInstance.mainComponent', node.mainComponent, node.mainComponent.type) // COMPONENT
+// function parseInstance(node: InstanceNode, context) {
+//     console.log('parseInstance', node.name, node, node.children)
+//     console.log('parseInstance.mainComponent', node.mainComponent, node.mainComponent.type) // COMPONENT
 
-    return parseCommon(node, {
-        _type: 'group',
-        x: node.x,
-        y: node.y,
-        width: node.width,
-        height: node.height,
-        // borderRadius: node.cornerRadius || 0,
-    }, {
-        frameLike: true,
-        context,
-        style: false,
-    })
-}
+//     return await parseCommon(node, {
+//         _type: 'group',
+//         x: node.x,
+//         y: node.y,
+//         width: node.width,
+//         height: node.height,
+//         // borderRadius: node.cornerRadius || 0,
+//     }, {
+//         frameLike: true,
+//         context,
+//         style: false,
+//     })
+// }
 
-function parseComponent(node: InstanceNode, context) {
+async function parseComponent(node: InstanceNode, context) {
     console.log('parseComponent', node.name, node, node.children)
     // console.log('parseComponent.mainComponent', node.mainComponent, node.mainComponent.type) // COMPONENT
 
@@ -1111,7 +1123,7 @@ function parseComponent(node: InstanceNode, context) {
         }
     }
 
-    return parseCommon(node, {
+    return await parseCommon(node, {
         _type: 'group',
         id: node.id,
         name: node.name,
@@ -1131,7 +1143,7 @@ function parseComponent(node: InstanceNode, context) {
         style: false,
     })
 
-    // return parseCommon(node, {
+    // return await parseCommon(node, {
     //     _type: 'group',
     //     x: node.x,
     //     y: node.y,
@@ -1184,22 +1196,22 @@ async function parseRect(node: RectangleNode, context) {
     console.log('parseRect', node.name, node, node.strokes)
 
     const fill0 = node.fills[0]
-    if (fill0?.type == 'IMAGE') {
-        const img = figma.getImageByHash(fill0.imageHash)
+    // if (fill0?.type == 'IMAGE') {
+    //     const img = figma.getImageByHash(fill0.imageHash)
 
-        const u8arr = await img.getBytesAsync()
-        const base64 = figma.base64Encode(u8arr)
-        // console.log('base64', base64)
+    //     const u8arr = await img.getBytesAsync()
+    //     const base64 = figma.base64Encode(u8arr)
+    //     // console.log('base64', base64)
 
-        return parseCommon(node, {
-            _type: 'image',
-            x: node.x,
-            y: node.y,
-            width: node.width,
-            height: node.height,
-            href: `data:image/png;base64,${base64}`,
-        })
-    }
+    //     return await parseCommon(node, {
+    //         _type: 'image',
+    //         x: node.x,
+    //         y: node.y,
+    //         width: node.width,
+    //         height: node.height,
+    //         href: `data:image/png;base64,${base64}`,
+    //     })
+    // }
 
     let rect = {
         x: node.x,
@@ -1219,7 +1231,7 @@ async function parseRect(node: RectangleNode, context) {
         rect.y = context._frameRect.y + rect.y
     }
 
-    return parseCommon(node, {
+    return await parseCommon(node, {
         _type: 'rect',
         ...rect,
         // x: node.x,
@@ -1230,8 +1242,8 @@ async function parseRect(node: RectangleNode, context) {
     })
 }
 
-function parseBoolean(node: BooleanOperationNode) {
-    return parseCommon(node, {
+async function parseBoolean(node: BooleanOperationNode) {
+    return await parseCommon(node, {
         _type: 'boolOp',
         x: node.x,
         y: node.y,
@@ -1250,7 +1262,7 @@ function parseBoolean(node: BooleanOperationNode) {
     // }
 }
 
-function parsePolygon(node: PolygonNode) {
+async function parsePolygon(node: PolygonNode) {
 
     const edge = node.pointCount
     // console.log('parsePolygon.edge', edge)
@@ -1291,14 +1303,14 @@ function parsePolygon(node: PolygonNode) {
 
     // console.log('parsePolygon.newPoints', newPoints)
 
-    return parseCommon(node, {
+    return await parseCommon(node, {
         _type: 'polygon',
         // points: points,
         points: newPoints,
     })
 }
 
-function parseStar(node: StarNode) {
+async function parseStar(node: StarNode) {
     // console.log('parseStar', node)
 
     const edge = node.pointCount
@@ -1330,12 +1342,12 @@ function parseStar(node: StarNode) {
 
     // console.log('parsePolygon.newPoints', newPoints)
 
-    return parseCommon(node, {
+    return await parseCommon(node, {
         _type: 'polygon',
         // points: points,
         points: newPoints,
     })
-    // return parseCommon(node, {
+    // return await parseCommon(node, {
     //     _type: 'rect',
     //     x: node.x,
     //     y: node.y,
@@ -1344,7 +1356,7 @@ function parseStar(node: StarNode) {
     // })
 }
 
-function parseVector(node: VectorNode, context) {
+async function parseVector(node: VectorNode, context) {
     console.log('parseVector', node)
     console.log('parseVector.vectorPaths', node.vectorPaths)
     // console.log('parseVector.xy', node.x, node.y)
@@ -1382,7 +1394,7 @@ function parseVector(node: VectorNode, context) {
 
         const newD = serialize(translate(parse(path.data), rect.x, rect.y))
         data += newD
-        // return parseCommon(node, {
+        // return await parseCommon(node, {
         //     // _type: 'rect',
         //     // x: node.x,
         //     // y: node.y,
@@ -1403,7 +1415,7 @@ function parseVector(node: VectorNode, context) {
 
     //         const newD = serialize(translate(parse(path.data), node.x, node.y))
 
-    //         return parseCommon(node, {
+    //         return await parseCommon(node, {
     //             // _type: 'rect',
     //             // x: node.x,
     //             // y: node.y,
@@ -1416,7 +1428,7 @@ function parseVector(node: VectorNode, context) {
     //         // }
     //     }),   
     // }
-    return parseCommon(node, {
+    return await parseCommon(node, {
         _type: 'path',
         d: data,
         // cx: node.x + node.width / 2,
@@ -1426,7 +1438,7 @@ function parseVector(node: VectorNode, context) {
     })
 }
 
-function parseEllipse(node: EllipseNode, context) {
+async function parseEllipse(node: EllipseNode, context) {
     console.log('parseEllipse', node.name, node)
     const rect = {
         x: node.x,
@@ -1446,7 +1458,7 @@ function parseEllipse(node: EllipseNode, context) {
         rect.y = context._frameRect.y + rect.y
     }
 
-    return parseCommon(node, {
+    return await parseCommon(node, {
         _type: 'ellipse',
         cx: rect.x + rect.width / 2,
         cy: rect.y + rect.height / 2,
@@ -1460,7 +1472,7 @@ function parseEllipse(node: EllipseNode, context) {
 //     90
 // 180     0
 //    -90
-function parseLine(node: LineNode) {
+async function parseLine(node: LineNode) {
     console.log('parseLine', node, node.rotation)
     console.log('parseLine.xy', node.x, node.y)
     console.log('parseLine.xy rotation', node.rotation)
@@ -1544,7 +1556,7 @@ function parseLine(node: LineNode) {
     }
     const end = getPoint()
     
-    return parseCommon(node, {
+    return await parseCommon(node, {
         _type: 'line',
         x1: start.x,
         y1: start.y,
@@ -1554,7 +1566,7 @@ function parseLine(node: LineNode) {
     
 }
 
-function parseText(node: TextNode, context) {
+async function parseText(node: TextNode, context) {
     console.log('parseText', node)
     // console.log('parseText.characters', node.characters)
     console.log('parseText.fontName', node.fontName)
@@ -1732,44 +1744,44 @@ async function parseOutFrame(frame1) {
 
 
             if (node.type == 'FRAME') {
-                return parseFrame(node, parent, context)
+                return await parseFrame(node, parent, context)
             }
             else if (node.type == 'PAGE') {
-                return parsePage(node)
+                return await parsePage(node)
             }
             else if (node.type == 'GROUP') {
-                return parseGroup(node)
+                return await parseGroup(node)
             }
             else if (node.type == 'RECTANGLE') {
                 return await parseRect(node, context)
             }
             else if (node.type == 'VECTOR') {
-                return parseVector(node, context)
+                return await parseVector(node, context)
             }
             else if (node.type == 'ELLIPSE') {
-                return parseEllipse(node, context)
+                return await parseEllipse(node, context)
             }
             else if (node.type == 'POLYGON') {
-                return parsePolygon(node)
+                return await parsePolygon(node)
             }
             else if (node.type == 'STAR') {
-                return parseStar(node)
+                return await parseStar(node)
             }
             else if (node.type == 'LINE') {
-                return parseLine(node)
+                return await parseLine(node)
             }
             else if (node.type == 'TEXT') {
-                return parseText(node, context)
+                return await parseText(node, context)
             }
             else if (node.type == 'BOOLEAN_OPERATION') {
-                return parseBoolean(node)
+                return await parseBoolean(node)
             }
             else if (node.type == 'INSTANCE') {
                 // return parseInstance(node, context)
-                return parseComponent(node, context)
+                return await parseComponent(node, context)
             }
             else if (node.type == 'COMPONENT') {
-                return parseComponent(node, context)
+                return await parseComponent(node, context)
             }
             
             // return {
