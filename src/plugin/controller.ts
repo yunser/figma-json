@@ -18,7 +18,7 @@ import { text } from 'node:stream/consumers'
 import { TreeUtil } from '@yunser/tree-lib'
 
 interface CommonNode {
-    fills: ReadonlyArray<Paint>
+    fills: ReadonlyArray<Paint> | PluginAPI['mixed']
 }
 
 console.clear()
@@ -943,6 +943,10 @@ function parseFigmaStoke(node) {
 function parseFigamFills(node: CommonNode) {
     // let color = null
     // let fill = null
+    if (node.fills == figma.mixed) {
+        return []
+    }
+    console.log('node.fills', node.fills, node)
     const fills = (node.fills || []).filter(item => item.type == 'SOLID' || item.type == 'GRADIENT_LINEAR')
     
     return fills.map(item => {
