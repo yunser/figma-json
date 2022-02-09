@@ -23,6 +23,7 @@ interface CommonNode {
 
 console.clear()
 
+console.log('figma.viewport', figma.viewport)
 // import { applyMatrixToPoint } from './applyMatrixToPoint'
 
 const default_font_name = { family: "Roboto", style: "Regular" }
@@ -1015,7 +1016,15 @@ async function parseFigamFills(node: CommonNode) {
     // }
 }
 
-
+function parseExportSettings(exportSettings: ExportSettings[]) {
+    return exportSettings.map(setting => {
+        return {
+            format: setting.format.toLocaleLowerCase(),
+            suffix: setting.suffix,
+            constraint: (setting as any).constraint || null,
+        }
+    })
+}
 
 async function parseCommon(node, extra, { context, frameLike = false, style = true }: any = {}) {
     let rect = {
@@ -1059,7 +1068,10 @@ async function parseCommon(node, extra, { context, frameLike = false, style = tr
         visible: node.visible,
         ...extra,
         rotation: node.rotation,
+        exportSettings: parseExportSettings(node.exportSettings)
     }
+
+    console.log('node.exportSettings', node.exportSettings)
     
     if (style) {
         result = {
