@@ -1,7 +1,7 @@
 // import toUint8Array from 'base64-to-uint8array'
 
 import { uiUtil } from '@yunser/ui-std/dist/helper'
-
+import { uid } from 'uid'
 // import { extractLinearGradientParamsFromTransform } from '@figma-plugin/helpers'
 
 // extractLinearGradientStartEnd
@@ -855,8 +855,24 @@ function parseFrame(node: FrameNode, parent, context) {
             // width: node.width,
             // height: node.height,
             mark: node.isMask, // TODO 封装
+            children: [
+                {
+                    _type: 'rect',
+                    id: (node.id || '') + '-' + uid(16),
+                    name: (node.name ? (node.name + '-') : '') + 'bg',
+                    ...rect,
+                    color: '#f00',
+                    // x: node.x,
+                    // y: node.y,
+                    // width: node.width,
+                    // height: node.height,
+                    // mark: node.isMask, // TODO 封装
+                }
+            ],
         }
     }
+
+    // outer frame
     return {
         _type: 'frame',
         id: node.id,
@@ -1646,6 +1662,7 @@ async function parseOutFrame(frame1) {
     const resultJson = TreeUtil.map(frame1, {
         childrenKey: 'children',
         childrenSetKey: '_children',
+        // childrenReverse: true,
         async nodeHandler(node, { parent, context }) {
 
             console.log('nodeHandler2', node.type, node.name, node)

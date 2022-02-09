@@ -11,7 +11,7 @@
   "dependencies": {
     "@figma-plugin/helpers": "^0.15.2",
     "@yunser/sketch-lib": "0.0.4",
-    "@yunser/tree-lib": "0.0.2",
+    "@yunser/tree-lib": "0.0.5",
     "@yunser/ui-std": "0.0.29",
     "base64-to-uint8array": "^1.0.0",
     "color": "^3.2.1",
