@@ -22,11 +22,15 @@ interface CommonNode {
     id: string
     name: string
     fills: ReadonlyArray<Paint> | PluginAPI['mixed']
+    strokes: ReadonlyArray<Paint>
     relativeTransform: Transform
     x: number
     y: number
     width: number
     height: number
+    strokeWeight: number
+    strokeAlign: "CENTER" | "INSIDE" | "OUTSIDE"
+    dashPattern: ReadonlyArray<number>
 }
 
 console.clear()
@@ -945,30 +949,67 @@ function parseEffects(node) {
     }
 }
 
-function parseFigmaStoke(node) {
-    const strokes: Paint[] = node.strokes
-    const stroke0: any = (strokes || [])[0]
-    if (!stroke0) {
-        return undefined
-    }
-    // console.log('stroke', stroke)
-    const map = {
-        "CENTER": 'center',
-        "INSIDE": 'inside',
-        "OUTSIDE": 'outside',
-    }
+function parseGradientPaint(paint: GradientPaint) {
+    const params = extractLinearGradientParamsFromTransform(paint.gradientTransform)
+
     return {
-        color: parseFigmaColor(stroke0?.color),
-        width: node.strokeWeight || 1,
-        position: map[node.strokeAlign],
-        opacity: stroke0.opacity,
-        dashed: node.dashPattern,
+        type: 'linearGradient',
+        visible: paint.visible,
+        opacity: paint.opacity,
+        from: params.from,
+        to: params.to,
+        // direction: 0,
+        stops: paint.gradientStops.map(item => {
+            return {
+                color: parseRgba(item.color),
+                position: item.position,
+                alpha: item.color.a,
+            }
+        }),
     }
+}
+
+function parseStoke(node: CommonNode) {
+    const strokes: Paint[] = node.strokes.filter(item => item.type == 'SOLID' || item.type == 'GRADIENT_LINEAR')
+    return strokes.map(item => {
+        const stroke0 = item
+        // const stroke0: any = (strokes || [])[0]
+        // if (!stroke0) {
+        //     return undefined
+        // }
+        // console.log('stroke', stroke)
+        const map = {
+            "CENTER": 'center',
+            "INSIDE": 'inside',
+            "OUTSIDE": 'outside',
+        }
+        
+        const commonAttr = {
+            width: node.strokeWeight || 1,
+            position: map[node.strokeAlign],
+            opacity: stroke0.opacity,
+            dashed: node.dashPattern,
+        }
+        if (stroke0.type == 'SOLID') {
+            
+            return {
+                ...commonAttr,
+                type: 'color',
+                color: parseFigmaColor(stroke0?.color),
+            }
+        }
+        else if (stroke0.type == 'GRADIENT_LINEAR') {
+            return {
+                ...commonAttr,
+                ...parseGradientPaint(stroke0),
+            }
+        }
+    })
 }
 
 
 
-async function parseFigamFills(node: CommonNode) {
+async function parseFills(node: CommonNode) {
     // let color = null
     // let fill = null
     if (node.fills == figma.mixed) {
@@ -1018,24 +1059,10 @@ async function parseFigamFills(node: CommonNode) {
             // console.log('gradientTransform', node.name, paint.gradientTransform)
     
             // const gradientStops: ColorStop[] = fill0.gradientStops
-            const params = extractLinearGradientParamsFromTransform(paint.gradientTransform)
+            // const params = extractLinearGradientParamsFromTransform(paint.gradientTransform)
             // console.log('gradientTransform.params', node.name, params)
     
-            return {
-                type: 'linearGradient',
-                visible: fill0.visible,
-                opacity: fill0.opacity,
-                from: params.from,
-                to: params.to,
-                // direction: 0,
-                stops: paint.gradientStops.map(item => {
-                    return {
-                        color: parseRgba(item.color),
-                        position: item.position,
-                        alpha: item.color.a,
-                    }
-                }),
-            }
+            return parseGradientPaint(paint)
         }
     })
     // 
@@ -1146,10 +1173,9 @@ async function parseCommon(node, extra, opts: any = {}) {
     
     if (style) {
         result = {
-            fills: await parseFigamFills(node),
-            // color: parseFigmaColor(node.fills[0]?.color),
+            fills: await parseFills(node),
+            strokes: parseStoke(node),
             ...parseEffects(node),
-            border: parseFigmaStoke(node),
             ...result,
         }
     }
@@ -1443,49 +1469,7 @@ async function parseStar(node: StarNode) {
 }
 
 async function parseVector(node: VectorNode, context) {
-    console.log('parseVector', node.name, node)
-
-    // let rect = {
-    //     x: node.x,
-    //     y: node.y,
-    //     width: node.width,
-    //     height: node.height,
-    // }
-    // if (node.rotation) {
-    //     const { x, y } = getRotationXy(rect, node.rotation)
-    //     rect.x = x
-    //     rect.y = y
-    // }
-    // if (context._frameRect) {
-    //     rect.x = context._frameRect.x + rect.x
-    //     rect.y = context._frameRect.y + rect.y
-    // }
-
-    // console.log('parseVector.rect', rect)
-
-    
-
-    // return {
-    //     _type: 'group',
-    //     // name: node.name,
-    //     _children: node.vectorPaths.map(path => {
-    //         console.log('parseVector.path', path)
-
-    //         const newD = serialize(translate(parse(path.data), node.x, node.y))
-
-    //         return await parseCommon(node, {
-    //             // _type: 'rect',
-    //             // x: node.x,
-    //             // y: node.y,
-    //             // width: node.width,
-    //             // height: node.height,
-    //             _type: 'path',
-    //             d: newD,
-    //         })
-    //         // return {
-    //         // }
-    //     }),   
-    // }
+    // console.log('parseVector', node.name, node)
     return await parseCommon(node, {}, {
         context,
         calBox: true,
