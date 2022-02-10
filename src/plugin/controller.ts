@@ -40,8 +40,8 @@ function getTopLeft(node: CommonNode) {
     let rect = {
         // x: node.x,
         // y: node.y,
-        x: node.relativeTransform[0][0] == 1 ? node.x : (node.x + node.width * node.relativeTransform[0][0]),
-        y: node.relativeTransform[1][1] == 1 ? node.y : (node.y + node.height * node.relativeTransform[1][1]),
+        x: MathUtil.eq(node.relativeTransform[0][0], 1) ? node.x : (node.x + node.width * node.relativeTransform[0][0]),
+        y: MathUtil.eq(node.relativeTransform[1][1], 1) ? node.y : (node.y + node.height * node.relativeTransform[1][1]),
         width: node.width,
         height: node.height,
     }
@@ -240,6 +240,10 @@ const Helper = {
     }
 }
 const MathUtil = {
+    eq(num1: number, num2: number) {
+        const decimal = 4
+        return num1.toFixed(decimal) == num2.toFixed(decimal)
+    },
     distance(pt, lastPt) {
         return Math.sqrt(Math.pow(lastPt.x - pt.x, 2) + Math.pow(lastPt.y - pt.y, 2))
     },
@@ -1052,11 +1056,13 @@ function parseExportSettings(exportSettings: ExportSettings[]) {
 }
 
 async function parseCommon(node, extra, opts: any = {}) {
+    console.log('parseCommon', node.name, node)
     const {
         context,
         frameLike = false,
         style = true,
         calBox = false,
+        onCalc,
     } = opts
 
     let result = {
@@ -1075,10 +1081,10 @@ async function parseCommon(node, extra, opts: any = {}) {
         let rect = getTopLeft(node)
         console.log('parseCommon.rect', rect)
 
-        result.flipH = node.relativeTransform[0][0] == -1
-        result.flipV = node.relativeTransform[1][1] == -1
+        result.flipH = MathUtil.eq(node.relativeTransform[0][0], -1)
+        result.flipV = MathUtil.eq(node.relativeTransform[1][1], -1)
 
-        if (node.rotation && node.relativeTransform[0][0] != -1 && node.relativeTransform[1][1] != -1) {
+        if (node.rotation && MathUtil.eq(node.relativeTransform[0][0], -1) && MathUtil.eq(node.relativeTransform[1][1], -1)) {
             console.log('parseCommon.rotation', node.rotation)
             const { x, y } = getRotationXy(rect, node.rotation)
             rect.x = x
@@ -1126,6 +1132,13 @@ async function parseCommon(node, extra, opts: any = {}) {
             result.y = rect.y
             result.width = rect.width
             result.height = rect.height
+        }
+
+        if (onCalc) {
+            result = {
+                ...result,
+                ...onCalc({ rect }).attr,
+            }
         }
     }
 
@@ -1229,14 +1242,14 @@ async function parseComponent(node: InstanceNode, context) {
 
 function getRotationXy(rect, rotation) {
     const length = MathUtil.gougu(rect.width / 2, rect.height / 2)
-    console.log('parseRect.length', length)
+    // console.log('getRotationXy.length', length)
     const topLeft = {
         x: rect.x,
         y: rect.y
     }
     const { width, height } = rect
-    console.log('parseRect.topLeft', topLeft)
-    console.log('parseRect.topLeft', topLeft)
+    // console.log('getRotationXy.topLeft', topLeft)
+    // console.log('getRotationXy.topLeft', topLeft)
     //    90
     // 180    0
     //    -90
@@ -1254,12 +1267,12 @@ function getRotationXy(rect, rotation) {
     }
     const relAngle = getRelAngle(rotation)
     const topCenter = MathUtil.getPtByCenterAndAngle(topLeft, relAngle, width / 2)
-    console.log('parseRect.topCenter', topCenter)
+    // console.log('getRotationXy.topCenter', topCenter)
     const center = MathUtil.getPtByCenterAndAngle(topCenter, relAngle + 90, height / 2)
-    console.log('parseRect.center', center)
+    // console.log('getRotationXy.center', center)
     const x = center.x - width / 2
     const y = center.y - height / 2
-    console.log('parseRect.xy', rect.x, rect.y)
+    // console.log('getRotationXy.xy', rect.x, rect.y)
     return {x, y}
 }
 
@@ -1431,56 +1444,26 @@ async function parseStar(node: StarNode) {
 
 async function parseVector(node: VectorNode, context) {
     console.log('parseVector', node.name, node)
-    // console.log('parseVector.vectorPaths', node.vectorPaths)
-    // console.log('parseVector.xy', node.x, node.y)
 
-    let rect = {
-        x: node.x,
-        y: node.y,
-        width: node.width,
-        height: node.height,
-    }
-    if (node.rotation) {
-        const { x, y } = getRotationXy(rect, node.rotation)
-        rect.x = x
-        rect.y = y
-    }
-    if (context._frameRect) {
-        rect.x = context._frameRect.x + rect.x
-        rect.y = context._frameRect.y + rect.y
-    }
-
-    console.log('parseVector.rect', rect)
-
-    // return {
-    //     _type: 'rect',
-    //     id: node.id,
-    //     name: node.name,
+    // let rect = {
     //     x: node.x,
     //     y: node.y,
     //     width: node.width,
     //     height: node.height,
     // }
-    let data = ''
+    // if (node.rotation) {
+    //     const { x, y } = getRotationXy(rect, node.rotation)
+    //     rect.x = x
+    //     rect.y = y
+    // }
+    // if (context._frameRect) {
+    //     rect.x = context._frameRect.x + rect.x
+    //     rect.y = context._frameRect.y + rect.y
+    // }
 
-    // const 
-    node.vectorPaths.map(path => {
-        console.log('parseVector.path', path)
+    // console.log('parseVector.rect', rect)
 
-        const newD = serialize(translate(parse(path.data), rect.x, rect.y))
-        data += newD
-        // return await parseCommon(node, {
-        //     // _type: 'rect',
-        //     // x: node.x,
-        //     // y: node.y,
-        //     // width: node.width,
-        //     // height: node.height,
-        //     _type: 'path',
-        //     d: newD,
-        // })
-        // return {
-        // }
-    })
+    
 
     // return {
     //     _type: 'group',
@@ -1503,13 +1486,25 @@ async function parseVector(node: VectorNode, context) {
     //         // }
     //     }),   
     // }
-    return await parseCommon(node, {
-        _type: 'path',
-        d: data,
-        // cx: node.x + node.width / 2,
-        // cy: node.y + node.height / 2,
-        // rx: node.width / 2,
-        // ry: node.height / 2,
+    return await parseCommon(node, {}, {
+        context,
+        calBox: true,
+        onCalc: ({ rect }) => {
+            let data = ''
+            node.vectorPaths.map(path => {
+                console.log('parseVector.path', path)
+
+                const newD = serialize(translate(parse(path.data), rect.x, rect.y))
+                data += newD
+            })
+            
+            return {
+                attr: {
+                    _type: 'path',
+                    d: data,
+                }
+            }
+        },
     })
 }
 
