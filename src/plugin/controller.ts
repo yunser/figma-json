@@ -1068,7 +1068,7 @@ async function parseCommon(node, extra, opts: any = {}) {
         ...extra,
         // rotation: node.rotation,
         exportSettings: parseExportSettings(node.exportSettings),
-        borderRadius: node.cornerRadius || 0,
+        borderRadius: node.cornerRadius == figma.mixed ? 0 : node.cornerRadius,
     }
 
     if (context) {
