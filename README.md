@@ -13,7 +13,6 @@ run npm install --save-dev @figma/plugin-typings.
 * 读
   * bg 省略
   * 旋转等变换
-  * 遮罩
   * frame 遮罩
   * figma font to path
   * 旋转+frame
@@ -26,6 +25,11 @@ run npm install --save-dev @figma/plugin-typings.
   * 统一字体
   * 复合图形多颜色
   * 翻转+旋转
+  * frame stroke
+  * 文字垂直位置
+  * 边框虚线
+  * shape 看不到了
+  * 
 * 写
 
 ## TODO

@@ -894,6 +894,7 @@ async function parseFrame(node: FrameNode, parent, context) {
             name: (node.name ? (node.name + '-') : '') + 'bg',
             ...rect,
             borderRadius: node.cornerRadius || 0,
+            mask: true,
         })
         console.log('parseFrame.bg', bg)
         return {
@@ -1835,7 +1836,7 @@ async function parseText(node: TextNode, context) {
         letterSpacing: node.letterSpacing == figma.mixed ? undefined : parseLetterSpacing(node.letterSpacing, node.fontSize == figma.mixed ? undefined : node.fontSize),
         textSize: node.fontSize == figma.mixed ? undefined : node.fontSize,
         lineHeight: node.lineHeight == figma.mixed ? undefined : parseLineHeight(node.lineHeight, node.fontSize == figma.mixed ? undefined : node.fontSize),
-        fontFamily: (node.fontName as any).family, // TODO
+        fontFamily: (node.fontName as any).family, // TODO mixed
         align: alignMap[node.textAlignHorizontal],
         rich,
         // characters
