@@ -25,6 +25,7 @@ run npm install --save-dev @figma/plugin-typings.
   * fill visible
   * 统一字体
   * 复合图形多颜色
+  * 翻转+旋转
 * 写
 
 ## TODO
@@ -33,7 +34,6 @@ run npm install --save-dev @figma/plugin-typings.
     * blur + shadow
     * 遮罩
     * 旋转等变换
-    * 太大时，Sketch 无法打开
 
 ## 问题
 

@@ -32,6 +32,7 @@ interface CommonNode {
     strokeWeight: number
     strokeAlign: "CENTER" | "INSIDE" | "OUTSIDE"
     dashPattern: ReadonlyArray<number>
+    rotation: number
 }
 
 function normaliseCommands(commands: SVGCommand[]) {
@@ -65,17 +66,32 @@ console.log('figma.viewport', figma.viewport)
 
 const default_font_name = { family: "Roboto", style: "Regular" }
 
+function hasRotation(node: CommonNode) {
+    // 因为翻转的时候也会有 rotation 值，所以加了判断
+    return node.rotation && !MathUtil.eq(node.relativeTransform[0][1], 0) && !MathUtil.eq(node.relativeTransform[1][0], 0)
+}
+
 function getTopLeft(node: CommonNode) {
-    let rect = {
-        // x: node.x,
-        // y: node.y,
-        x: MathUtil.eq(node.relativeTransform[0][0], 1) ? node.x : (node.x + node.width * node.relativeTransform[0][0]),
-        y: MathUtil.eq(node.relativeTransform[1][1], 1) ? node.y : (node.y + node.height * node.relativeTransform[1][1]),
-        width: node.width,
-        height: node.height,
+    if (hasRotation(node)) {
+        return {
+            x: node.x,
+            y: node.y,
+            width: node.width,
+            height: node.height,
+        }
     }
-    // console.log('getTopLeft', node.name, rect)
-    return rect
+    else {
+        let rect = {
+            // x: node.x,
+            // y: node.y,
+            x: MathUtil.eq(node.relativeTransform[0][0], 1) ? node.x : (node.x + node.width * node.relativeTransform[0][0]),
+            y: MathUtil.eq(node.relativeTransform[1][1], 1) ? node.y : (node.y + node.height * node.relativeTransform[1][1]),
+            width: node.width,
+            height: node.height,
+        }
+        // console.log('getTopLeft', node.name, rect)
+        return rect
+    }
 }
 
 
@@ -1132,14 +1148,17 @@ async function parseCommon(node, extra, opts: any = {}) {
     }
 
     if (context) {
+        console.log('parseCommon.rect0', {x: node.x, y: node.y})
         let rect = getTopLeft(node)
         console.log('parseCommon.rect', rect)
 
         result.flipH = MathUtil.eq(node.relativeTransform[0][0], -1)
         result.flipV = MathUtil.eq(node.relativeTransform[1][1], -1)
 
-        if (node.rotation && MathUtil.eq(node.relativeTransform[0][0], -1) && MathUtil.eq(node.relativeTransform[1][1], -1)) {
-            console.log('parseCommon.rotation', node.rotation)
+
+        console.log('parseCommon.rotation', node.rotation)
+        console.log('parseCommon.relativeTransform', node.relativeTransform)
+        if (hasRotation(node)) {
             const { x, y } = getRotationXy(rect, node.rotation)
             rect.x = x
             rect.y = y
@@ -1332,10 +1351,10 @@ function getRotationXy(rect, rotation) {
 async function parseRect(node: RectangleNode, context) {
     console.log('parseRect', node.name, node, node.strokes)
 
-    console.log('parseRect.fillGeometry', node.fillGeometry)
-    console.log('parseRect.relativeTransform', node.relativeTransform)
-    console.log('parseRect.rotation', node.rotation)
-    console.log('parseRect.absoluteTransform', node.absoluteTransform)
+    // console.log('parseRect.fillGeometry', node.fillGeometry)
+    // console.log('parseRect.relativeTransform', node.relativeTransform)
+    // console.log('parseRect.rotation', node.rotation)
+    // console.log('parseRect.absoluteTransform', node.absoluteTransform)
 
     // const fill0 = node.fills[0]
     // if (fill0?.type == 'IMAGE') {
