@@ -1579,31 +1579,47 @@ async function parseVector(node: VectorNode, context) {
 }
 
 async function parseEllipse(node: EllipseNode, context) {
-    console.log('parseEllipse', node.name, node)
-    const rect = {
-        x: node.x,
-        y: node.y,
-        width: node.width,
-        height: node.height,
-    }
-    console.log('parseEllipse.rect', rect)
-    if (node.rotation) {
-        const { x, y } = getRotationXy(rect, node.rotation)
-        rect.x = x
-        rect.y = y
-    }
-    if (context._frameRect) {
-        console.log('parseEllipse.isFrame')
-        rect.x = context._frameRect.x + rect.x
-        rect.y = context._frameRect.y + rect.y
-    }
+    // console.log('parseEllipse', node.name, node)
+    // const rect = {
+    //     x: node.x,
+    //     y: node.y,
+    //     width: node.width,
+    //     height: node.height,
+    // }
+    // console.log('parseEllipse.rect', rect)
+    // if (node.rotation) {
+    //     const { x, y } = getRotationXy(rect, node.rotation)
+    //     rect.x = x
+    //     rect.y = y
+    // }
+    // if (context._frameRect) {
+    //     console.log('parseEllipse.isFrame')
+    //     rect.x = context._frameRect.x + rect.x
+    //     rect.y = context._frameRect.y + rect.y
+    // }
 
-    return await parseCommon(node, {
-        _type: 'ellipse',
-        cx: rect.x + rect.width / 2,
-        cy: rect.y + rect.height / 2,
-        rx: rect.width / 2,
-        ry: rect.height / 2,
+    // return await parseCommon(node, {
+    //     _type: 'ellipse',
+    //     cx: rect.x + rect.width / 2,
+    //     cy: rect.y + rect.height / 2,
+    //     rx: rect.width / 2,
+    //     ry: rect.height / 2,
+    // })
+
+    return await parseCommon(node, {}, {
+        context,
+        calBox: true,
+        onCalc: ({ rect }) => {
+            return {
+                attr: {
+                    _type: 'ellipse',
+                    cx: rect.x + rect.width / 2,
+                    cy: rect.y + rect.height / 2,
+                    rx: rect.width / 2,
+                    ry: rect.height / 2,
+                }
+            }
+        },
     })
 }
 
