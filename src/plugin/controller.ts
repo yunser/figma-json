@@ -16,9 +16,17 @@ import matrixInverse from 'matrix-inverse'
 import { text } from 'node:stream/consumers'
 
 import { TreeUtil } from '@yunser/tree-lib'
+import { SVGPathData, SVGPathDataTransformer, encodeSVGPath, SVGPathDataParser } from 'svg-pathdata'
 
 interface CommonNode {
+    id: string
+    name: string
     fills: ReadonlyArray<Paint> | PluginAPI['mixed']
+    relativeTransform: Transform
+    x: number
+    y: number
+    width: number
+    height: number
 }
 
 console.clear()
@@ -28,6 +36,18 @@ console.log('figma.viewport', figma.viewport)
 
 const default_font_name = { family: "Roboto", style: "Regular" }
 
+function getTopLeft(node: CommonNode) {
+    let rect = {
+        // x: node.x,
+        // y: node.y,
+        x: node.relativeTransform[0][0] == 1 ? node.x : (node.x + node.width * node.relativeTransform[0][0]),
+        y: node.relativeTransform[1][1] == 1 ? node.y : (node.y + node.height * node.relativeTransform[1][1]),
+        width: node.width,
+        height: node.height,
+    }
+    // console.log('getTopLeft', node.name, rect)
+    return rect
+}
 
 
 function isSame(item, lastItem) {
@@ -784,8 +804,9 @@ figma.showUI(__html__)
 // callback. The callback will be passed the "pluginMessage" property of the
 // posted message.
 
-function parseFrame(node: FrameNode, parent, context) {
-    console.log('parseFrame', node, node.name, parent)
+async function parseFrame(node: FrameNode, parent, context) {
+    console.log('parseFrame', node.name, node, parent)
+    console.log('parseFrame.itemSpacing', node.itemSpacing)
     // return JSON.parse(JSON.stringify(node))
     // return someAttr(node, 'id', 'name',)
     if (parent) {
@@ -818,19 +839,21 @@ function parseFrame(node: FrameNode, parent, context) {
             }
         }
 
+        const bg = await parseCommon(node, {
+            _type: 'rect',
+            id: (node.id || '') + '-' + uid(16),
+            name: (node.name ? (node.name + '-') : '') + 'bg',
+            ...rect,
+            borderRadius: node.cornerRadius || 0,
+        })
+        console.log('parseFrame.bg', bg)
         return {
             _type: 'group',
             id: node.id,
             name: node.name,
             ...rect,
             children: [
-                parseCommon(node, {
-                    _type: 'rect',
-                    id: (node.id || '') + '-' + uid(16),
-                    name: (node.name ? (node.name + '-') : '') + 'bg',
-                    ...rect,
-                    borderRadius: node.cornerRadius || 0,
-                })
+                bg
             ],
         }
     }
@@ -981,6 +1004,7 @@ async function parseFigamFills(node: CommonNode) {
             return {
                 type: 'image',
                 visible: fill0.visible,
+                opacity: fill0.opacity,
                 image: base64,
             }
         }
@@ -996,6 +1020,7 @@ async function parseFigamFills(node: CommonNode) {
             return {
                 type: 'linearGradient',
                 visible: fill0.visible,
+                opacity: fill0.opacity,
                 from: params.from,
                 to: params.to,
                 // direction: 0,
@@ -1026,16 +1051,52 @@ function parseExportSettings(exportSettings: ExportSettings[]) {
     })
 }
 
-async function parseCommon(node, extra, { context, frameLike = false, style = true }: any = {}) {
-    let rect = {
-        x: node.x,
-        y: node.y,
-        width: node.width,
-        height: node.height,
+async function parseCommon(node, extra, opts: any = {}) {
+    const {
+        context,
+        frameLike = false,
+        style = true,
+        calBox = false,
+    } = opts
+
+    let result = {
+        id: node.id,
+        name: node.name,
+        mask: node.isMask,
+        locked: node.locked,
+        visible: node.visible,
+        ...extra,
+        // rotation: node.rotation,
+        exportSettings: parseExportSettings(node.exportSettings),
+        borderRadius: node.cornerRadius || 0,
     }
+
     if (context) {
+        let rect = getTopLeft(node)
+        console.log('parseCommon.rect', rect)
+
+        result.flipH = node.relativeTransform[0][0] == -1
+        result.flipV = node.relativeTransform[1][1] == -1
+
+        if (node.rotation && node.relativeTransform[0][0] != -1 && node.relativeTransform[1][1] != -1) {
+            console.log('parseCommon.rotation', node.rotation)
+            const { x, y } = getRotationXy(rect, node.rotation)
+            rect.x = x
+            rect.y = y
+            result.rotation = node.rotation
+        }
+        else {
+            result.rotation = 0
+        }
+        // let rect = {
+        //     x: node.x,
+        //     y: node.y,
+        //     width: node.width,
+        //     height: node.height,
+        // }
 
         if (context._frameRect) {
+            console.log('parseCommon._frameRect', context._frameRect)
             rect.x = context._frameRect.x + rect.x
             rect.y = context._frameRect.y + rect.y
         }
@@ -1057,21 +1118,18 @@ async function parseCommon(node, extra, { context, frameLike = false, style = tr
                     // height: node.height,
                 }
             }
-    }
+        }
+
+        if (calBox) {
+            console.log('parseCommon.calBox', rect.x)
+            result.x = rect.x
+            result.y = rect.y
+            result.width = rect.width
+            result.height = rect.height
+        }
     }
 
-    let result = {
-        id: node.id,
-        name: node.name,
-        mask: node.isMask,
-        locked: node.locked,
-        visible: node.visible,
-        ...extra,
-        rotation: node.rotation,
-        exportSettings: parseExportSettings(node.exportSettings)
-    }
-
-    console.log('node.exportSettings', node.exportSettings)
+    // console.log('parseCommon.exportSettings', node.exportSettings)
     
     if (style) {
         result = {
@@ -1141,7 +1199,7 @@ async function parseComponent(node: InstanceNode, context) {
         name: node.name,
         ...rect,
         children: [
-            parseCommon(node, {
+            await parseCommon(node, {
                 _type: 'rect',
                 id: (node.id || '') + '-' + uid(16),
                 name: (node.name ? (node.name + '-') : '') + 'bg',
@@ -1178,6 +1236,7 @@ function getRotationXy(rect, rotation) {
     }
     const { width, height } = rect
     console.log('parseRect.topLeft', topLeft)
+    console.log('parseRect.topLeft', topLeft)
     //    90
     // 180    0
     //    -90
@@ -1207,7 +1266,12 @@ function getRotationXy(rect, rotation) {
 async function parseRect(node: RectangleNode, context) {
     console.log('parseRect', node.name, node, node.strokes)
 
-    const fill0 = node.fills[0]
+    console.log('parseRect.fillGeometry', node.fillGeometry)
+    console.log('parseRect.relativeTransform', node.relativeTransform)
+    console.log('parseRect.rotation', node.rotation)
+    console.log('parseRect.absoluteTransform', node.absoluteTransform)
+
+    // const fill0 = node.fills[0]
     // if (fill0?.type == 'IMAGE') {
     //     const img = figma.getImageByHash(fill0.imageHash)
 
@@ -1225,32 +1289,29 @@ async function parseRect(node: RectangleNode, context) {
     //     })
     // }
 
-    let rect = {
-        x: node.x,
-        y: node.y,
-        width: node.width,
-        height: node.height,
-    }
-    console.log('parseRect.rect', rect)
-    if (node.rotation) {
-        const {x, y} = getRotationXy(rect, node.rotation)
-        rect.x = x
-        rect.y = y
-    }
-    console.log('parseRect._frameRect', context._frameRect)
-    if (context._frameRect) {
-        rect.x = context._frameRect.x + rect.x
-        rect.y = context._frameRect.y + rect.y
-    }
+    // let rect = getTopLeft(node)
+    // console.log('parseRect.rect', rect)
+    // if (node.rotation) {
+    //     const {x, y} = getRotationXy(rect, node.rotation)
+    //     rect.x = x
+    //     rect.y = y
+    // }
+    // console.log('parseRect._frameRect', context._frameRect)
+    // if (context._frameRect) {
+    //     rect.x = context._frameRect.x + rect.x
+    //     rect.y = context._frameRect.y + rect.y
+    // }
 
     return await parseCommon(node, {
         _type: 'rect',
-        ...rect,
+        // ...rect,
         // x: node.x,
         // y: node.y,
         // width: node.width,
         // height: node.height,
-        borderRadius: node.cornerRadius || 0,
+    }, {
+        context,
+        calBox: true,
     })
 }
 
@@ -1369,8 +1430,8 @@ async function parseStar(node: StarNode) {
 }
 
 async function parseVector(node: VectorNode, context) {
-    console.log('parseVector', node)
-    console.log('parseVector.vectorPaths', node.vectorPaths)
+    console.log('parseVector', node.name, node)
+    // console.log('parseVector.vectorPaths', node.vectorPaths)
     // console.log('parseVector.xy', node.x, node.y)
 
     let rect = {
@@ -1388,6 +1449,8 @@ async function parseVector(node: VectorNode, context) {
         rect.x = context._frameRect.x + rect.x
         rect.y = context._frameRect.y + rect.y
     }
+
+    console.log('parseVector.rect', rect)
 
     // return {
     //     _type: 'rect',
@@ -1680,7 +1743,7 @@ async function parseText(node: TextNode, context) {
     // const font = node.fontName != figma.mixed ? node.fontName : { family: "Roboto", style: "Regular" };
 
     
-    const result = parseCommon(node, {
+    const result = await parseCommon(node, {
         _type: 'text',
         text: node.characters,
         ...rect,
@@ -1752,7 +1815,7 @@ async function parseOutFrame(frame1) {
         // childrenReverse: true,
         async nodeHandler(node, { parent, context }) {
 
-            console.log('nodeHandler2', node.type, node.name, node)
+            console.log('parseAll', node.type, node.name, node)
 
 
             if (node.type == 'FRAME') {
@@ -1850,6 +1913,7 @@ figma.ui.onmessage = async msg => {
 
     }
     if (msg.type === 'create-json') {
+        console.clear()
         const json = await getAllJson()
         console.log('json_result0', json)
         console.log('json_result', JSON.stringify(json, null, 4))

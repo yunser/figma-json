@@ -11,6 +11,7 @@ run npm install --save-dev @figma/plugin-typings.
   * 复合图形
 
 * 读
+  * bg 省略
   * 旋转等变换
   * 遮罩
   * frame 遮罩
