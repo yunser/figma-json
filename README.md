@@ -28,8 +28,8 @@ run npm install --save-dev @figma/plugin-typings.
   * frame stroke
   * 文字垂直位置
   * 边框虚线
-  * shape 看不到了
-  * 
+  * 路径的边界处理
+  * 背景模糊
 * 写
 
 ## TODO

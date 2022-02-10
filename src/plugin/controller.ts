@@ -978,9 +978,17 @@ function parseEffects(node) {
             }
         }
         if (effect0.type == 'LAYER_BLUR') {
-            blur = effect0.radius
+            blur = {
+                type: 'layer',
+                radius: effect0.radius,
+            }
         }
-
+        if (effect0.type == 'BACKGROUND_BLUR') {
+            blur = {
+                type: 'background',
+                radius: effect0.radius,
+            }
+        }
     }
 
     return {
