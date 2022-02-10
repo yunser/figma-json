@@ -17,6 +17,7 @@ import { text } from 'node:stream/consumers'
 
 import { TreeUtil } from '@yunser/tree-lib'
 import { SVGPathData, SVGPathDataTransformer, encodeSVGPath, SVGPathDataParser } from 'svg-pathdata'
+import { SVGCommand } from 'svg-pathdata/lib/types'
 
 interface CommonNode {
     id: string
@@ -33,6 +34,30 @@ interface CommonNode {
     dashPattern: ReadonlyArray<number>
 }
 
+function normaliseCommands(commands: SVGCommand[]) {
+    const map = {
+        [SVGPathData.CLOSE_PATH]: 'close',
+        [SVGPathData.MOVE_TO]: 'move',
+        [SVGPathData.LINE_TO]: 'line',
+        [SVGPathData.CURVE_TO]: 'curve',
+        // static readonly HORIZ_LINE_TO: 4;
+        // static readonly VERT_LINE_TO: 8;
+        // static readonly LINE_TO: 16;
+        // static readonly CURVE_TO: 32;
+        // static readonly SMOOTH_CURVE_TO: 64;
+        // static readonly QUAD_TO: 128;
+        // static readonly SMOOTH_QUAD_TO: 256;
+        // static readonly ARC: 512;
+        // static readonly LINE_COMMANDS: number;
+        // static readonly DRAWING_COMMANDS: number;
+    }
+    return commands.map(cmd => {
+        return {
+            ...cmd,
+            // type: map[cmd.type] || cmd.type,
+        }
+    })
+}
 console.clear()
 
 console.log('figma.viewport', figma.viewport)
@@ -970,7 +995,9 @@ function parseGradientPaint(paint: GradientPaint) {
 }
 
 function parseStoke(node: CommonNode) {
-    const strokes: Paint[] = node.strokes.filter(item => item.type == 'SOLID' || item.type == 'GRADIENT_LINEAR')
+    console.log('parseStoke', node)
+    // group 没有 strokes
+    const strokes: Paint[] = (node.strokes || []).filter(item => item.type == 'SOLID' || item.type == 'GRADIENT_LINEAR')
     return strokes.map(item => {
         const stroke0 = item
         // const stroke0: any = (strokes || [])[0]
@@ -1469,23 +1496,63 @@ async function parseStar(node: StarNode) {
 }
 
 async function parseVector(node: VectorNode, context) {
-    // console.log('parseVector', node.name, node)
+    console.log('parseVector', node.name, node)
+    console.log('parseVector.vectorNetwork', node.vectorNetwork)
+    console.log('parseVector.fillGeometry', node.fillGeometry)
     return await parseCommon(node, {}, {
         context,
         calBox: true,
         onCalc: ({ rect }) => {
-            let data = ''
-            node.vectorPaths.map(path => {
-                console.log('parseVector.path', path)
 
-                const newD = serialize(translate(parse(path.data), rect.x, rect.y))
-                data += newD
+            let ptIdx = 0
+            const data = node.vectorPaths.map((path, pathIdx) => {
+                console.log('parseVector.path', path)
+                console.log('parseVector.cornerRadius', node.cornerRadius)
+
+                // const newD = serialize()
+                // data += newD
+                let { commands } = new SVGPathData(path.data).translate(rect.x, rect.y)
+                commands = normaliseCommands(normaliseCommands(commands))
+                console.log('parseVector.commands', commands)
+
+                let regions = node.vectorNetwork.regions || []
+                if (!regions.length) {
+                    let loops = []
+                    for (let i = 0; i < node.vectorNetwork.vertices.length; i++) {
+                        loops.push(i)
+                    }
+                    regions = ([{
+                        loops: [loops]
+                    }]) as any
+                }
+                console.log('parseVector.regions', regions)
+                const region = regions[pathIdx]
+                console.log('parseVector.region', region)
+
+                return region.loops[0].map((segIdx, cmdIdx)=> {
+                    // console.log('parseVector.cmd', cmd)
+                    // console.log('parseVector.ptIdx', ptIdx)
+                    const vertice = node.vectorNetwork.vertices[segIdx]
+                    return {
+                        // cornerRadius: node.vectorNetwork.vertices[ptIdx++].cornerRadius || node.cornerRadius || 0,
+                        cornerRadius: vertice.cornerRadius || node.cornerRadius || 0,
+                        ...commands[cmdIdx],
+                        // vertice,
+                        // segIdx,
+                        // commandsLength: commands.length,
+
+                    }
+                })
+                // return {
+                //     type: 'xx',
+                //     ddd: translate(parse(path.data), rect.x, rect.y),
+                // }
             })
             
             return {
                 attr: {
                     _type: 'path',
-                    d: data,
+                    commands: data,
                 }
             }
         },
