@@ -30,6 +30,8 @@ run npm install --save-dev @figma/plugin-typings.
   * 边框虚线
   * 路径的边界处理
   * 背景模糊
+  * 非闭合路径
+  * frame 空提示
 * 写
 
 ## TODO
@@ -38,6 +40,10 @@ run npm install --save-dev @figma/plugin-typings.
     * blur + shadow
     * 遮罩
     * 旋转等变换
+    * 日志
+    * 耗时
+    * 图标文件测试
+      * 11 失败
 
 ## 问题
 

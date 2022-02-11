@@ -5,9 +5,9 @@ import { uid } from 'uid'
 // import { extractLinearGradientParamsFromTransform } from '@figma-plugin/helpers'
 
 // extractLinearGradientStartEnd
-var parse = require('parse-svg-path')
-var translate = require('translate-svg-path')
-var serialize = require('serialize-svg-path')
+// var parse = require('parse-svg-path')
+// var translate = require('translate-svg-path')
+// var serialize = require('serialize-svg-path')
 // import { saveAs } from 'file-saver';
 // var FileSaver = require('file-saver');
 // const JSZip = require('jszip')
@@ -18,6 +18,9 @@ import { text } from 'node:stream/consumers'
 import { TreeUtil } from '@yunser/tree-lib'
 import { SVGPathData, SVGPathDataTransformer, encodeSVGPath, SVGPathDataParser } from 'svg-pathdata'
 import { SVGCommand } from 'svg-pathdata/lib/types'
+import isNumber from 'is-number'
+// const isNumber = require('is-number');
+
 
 interface CommonNode {
     id: string
@@ -893,7 +896,6 @@ async function parseFrame(node: FrameNode, parent, context) {
             id: (node.id || '') + '-' + uid(16),
             name: (node.name ? (node.name + '-') : '') + 'bg',
             ...rect,
-            borderRadius: node.cornerRadius || 0,
             mask: true,
         })
         console.log('parseFrame.bg', bg)
@@ -1153,7 +1155,7 @@ async function parseCommon(node, extra, opts: any = {}) {
         ...extra,
         // rotation: node.rotation,
         exportSettings: parseExportSettings(node.exportSettings),
-        borderRadius: node.cornerRadius == figma.mixed ? 0 : node.cornerRadius,
+        cornerRadius: node.cornerRadius == figma.mixed ? 0 : node.cornerRadius,
     }
 
     if (context) {
@@ -1237,25 +1239,7 @@ async function parseCommon(node, extra, opts: any = {}) {
     return result
 }
 
-// function parseInstance(node: InstanceNode, context) {
-//     console.log('parseInstance', node.name, node, node.children)
-//     console.log('parseInstance.mainComponent', node.mainComponent, node.mainComponent.type) // COMPONENT
-
-//     return await parseCommon(node, {
-//         _type: 'group',
-//         x: node.x,
-//         y: node.y,
-//         width: node.width,
-//         height: node.height,
-//         // borderRadius: node.cornerRadius || 0,
-//     }, {
-//         frameLike: true,
-//         context,
-//         style: false,
-//     })
-// }
-
-async function parseComponent(node: InstanceNode, context) {
+async function parseComponentOrInstance(node: InstanceNode, context) {
     console.log('parseComponent', node.name, node, node.children)
     // console.log('parseComponent.mainComponent', node.mainComponent, node.mainComponent.type) // COMPONENT
 
@@ -1298,7 +1282,6 @@ async function parseComponent(node: InstanceNode, context) {
                 id: (node.id || '') + '-' + uid(16),
                 name: (node.name ? (node.name + '-') : '') + 'bg',
                 ...rect,
-                borderRadius: node.cornerRadius || 0,
             })
         ],
     }, {
@@ -1313,7 +1296,6 @@ async function parseComponent(node: InstanceNode, context) {
     //     y: node.y,
     //     width: node.width,
     //     height: node.height,
-    //     // borderRadius: node.cornerRadius || 0,
     // }, {
     //     frameLike: true,
     //     context,
@@ -1418,15 +1400,6 @@ async function parseBoolean(node: BooleanOperationNode) {
         height: node.height,
         opType: node.booleanOperation,
     })
-    // return {
-    //     _type: 'boolOp',
-    //     x: node.x,
-    //     y: node.y,
-    //     width: node.width,
-    //     height: node.height,
-    //     // borderRadius: node.cornerRadius || 0,
-    //     opType: node.booleanOperation,
-    // }
 }
 
 async function parsePolygon(node: PolygonNode) {
@@ -1526,7 +1499,8 @@ async function parseStar(node: StarNode) {
 async function parseVector(node: VectorNode, context) {
     console.log('parseVector', node.name, node)
     console.log('parseVector.vectorNetwork', node.vectorNetwork)
-    console.log('parseVector.fillGeometry', node.fillGeometry)
+    // console.log('parseVector.fillGeometry', node.fillGeometry)
+    // console.log('parseVector.vectorPaths', node.vectorPaths)
     return await parseCommon(node, {}, {
         context,
         calBox: true,
@@ -1534,8 +1508,8 @@ async function parseVector(node: VectorNode, context) {
 
             let ptIdx = 0
             const data = node.vectorPaths.map((path, pathIdx) => {
-                console.log('parseVector.path', path)
-                console.log('parseVector.cornerRadius', node.cornerRadius)
+                // console.log('parseVector.path', path)
+                // console.log('parseVector.cornerRadius', node.cornerRadius)
 
                 // const newD = serialize()
                 // data += newD
@@ -1553,18 +1527,25 @@ async function parseVector(node: VectorNode, context) {
                         loops: [loops]
                     }]) as any
                 }
-                console.log('parseVector.regions', regions)
+                // console.log('parseVector.regions', regions)
                 const region = regions[pathIdx]
-                console.log('parseVector.region', region)
+                // console.log('parseVector.region', region)
 
+                const pointNum = region.loops[0].length
                 return region.loops[0].map((segIdx, cmdIdx)=> {
                     // console.log('parseVector.cmd', cmd)
                     // console.log('parseVector.ptIdx', ptIdx)
                     const vertice = node.vectorNetwork.vertices[segIdx]
+
+                    let cmd = commands[cmdIdx]
+                    // TODO 坐标位置判断
+                    if (cmdIdx == 0 && commands[pointNum] && commands[pointNum].type !== SVGPathData.CLOSE_PATH) {
+                        cmd = commands[pointNum]
+                    }
+
                     return {
-                        // cornerRadius: node.vectorNetwork.vertices[ptIdx++].cornerRadius || node.cornerRadius || 0,
-                        cornerRadius: vertice.cornerRadius || node.cornerRadius || 0,
-                        ...commands[cmdIdx],
+                        cornerRadius: isNumber(vertice.cornerRadius) ? vertice.cornerRadius : node.cornerRadius == figma.mixed ? 0 : (node.cornerRadius || 0),
+                        ...cmd,
                         // vertice,
                         // segIdx,
                         // commandsLength: commands.length,
@@ -1638,9 +1619,9 @@ async function parseEllipse(node: EllipseNode, context) {
 // 180     0
 //    -90
 async function parseLine(node: LineNode) {
-    console.log('parseLine', node, node.rotation)
-    console.log('parseLine.xy', node.x, node.y)
-    console.log('parseLine.xy rotation', node.rotation)
+    // console.log('parseLine', node, node.rotation)
+    // console.log('parseLine.xy', node.x, node.y)
+    // console.log('parseLine.xy rotation', node.rotation)
 
     const { rotation } = node
     // if (rotation)
@@ -1650,7 +1631,7 @@ async function parseLine(node: LineNode) {
         x: node.x,
         y: node.y,
     }
-    console.log('parseLine.start', start)
+    // console.log('parseLine.start', start)
 
     function getPoint() {
         if (rotation == 0) {
@@ -1663,7 +1644,7 @@ async function parseLine(node: LineNode) {
             // 第一像限
             const x = Math.abs(Math.cos(MathUtil.degToRad(rotation)) * length)
             const y = Math.abs(Math.sin(MathUtil.degToRad(rotation)) * length)
-            console.log('parseLine.xy2 一', x, y, Math.cos(MathUtil.degToRad(rotation)))
+            // console.log('parseLine.xy2 一', x, y, Math.cos(MathUtil.degToRad(rotation)))
             return {
                 x: start.x + x,
                 y: start.y - y,
@@ -1679,7 +1660,7 @@ async function parseLine(node: LineNode) {
             // 第二像限
             const x = Math.abs(Math.cos(MathUtil.degToRad(rotation)) * length)
             const y = Math.abs(Math.sin(MathUtil.degToRad(rotation)) * length)
-            console.log('parseLine.xy2 二', x, y, Math.cos(MathUtil.degToRad(rotation)))
+            // console.log('parseLine.xy2 二', x, y, Math.cos(MathUtil.degToRad(rotation)))
             return {
                 x: start.x - x,
                 y: start.y - y,
@@ -1695,7 +1676,7 @@ async function parseLine(node: LineNode) {
             // 第四像限
             const x = Math.abs(Math.cos(MathUtil.degToRad(rotation)) * length)
             const y = Math.abs(Math.sin(MathUtil.degToRad(rotation)) * length)
-            console.log('parseLine.xy2 三', x, y, Math.cos(MathUtil.degToRad(rotation)))
+            // console.log('parseLine.xy2 三', x, y, Math.cos(MathUtil.degToRad(rotation)))
             return {
                 x: start.x + x,
                 y: start.y + y,
@@ -1711,7 +1692,7 @@ async function parseLine(node: LineNode) {
             // 第三像限
             const x = Math.abs(Math.cos(MathUtil.degToRad(rotation)) * length)
             const y = Math.abs(Math.sin(MathUtil.degToRad(rotation)) * length)
-            console.log('parseLine.xy2 三', x, y, Math.cos(MathUtil.degToRad(rotation)))
+            // console.log('parseLine.xy2 三', x, y, Math.cos(MathUtil.degToRad(rotation)))
             return {
                 x: start.x - x,
                 y: start.y + y,
@@ -1734,9 +1715,9 @@ async function parseLine(node: LineNode) {
 async function parseText(node: TextNode, context) {
     console.log('parseText', node)
     // console.log('parseText.characters', node.characters)
-    console.log('parseText.fontName', node.fontName)
-    console.log('parseText.fillGeometry', node.fillGeometry)
-    console.log('parseText.letterSpacing', node.letterSpacing)
+    // console.log('parseText.fontName', node.fontName)
+    // console.log('parseText.fillGeometry', node.fillGeometry)
+    // console.log('parseText.letterSpacing', node.letterSpacing)
     // console.log('parseText.fontSize', node.fontSize)
     // console.log('parseText.insertCharacters', node.insertCharacters)
     // const allTextNodes = figma.root.findAllWithCriteria({
@@ -1751,13 +1732,13 @@ async function parseText(node: TextNode, context) {
         width: node.width,
         height: node.height,
     }
-    console.log('parseText.rect', rect)
+    // console.log('parseText.rect', rect)
     if (node.rotation) {
         const { x, y } = getRotationXy(rect, node.rotation)
         rect.x = x
         rect.y = y
     }
-    console.log('parseText._frameRect', context._frameRect)
+    // console.log('parseText._frameRect', context._frameRect)
     if (context._frameRect) {
         rect.x = context._frameRect.x + rect.x
         rect.y = context._frameRect.y + rect.y
@@ -1885,20 +1866,20 @@ async function getAllJson() {
 }
 
 async function getFrame1Json() {
-    console.log('figma', figma)
+    // console.log('figma', figma)
     const page1_will = figma.root.children[0]
 
     // (window as any)['_page1'] = 12
 
-    console.log('page1', page1_will)
+    // console.log('page1', page1_will)
     const frame1 = page1_will.children.find(item => item.name == 'frame-1')
     return await parseOutFrame(frame1)
     
 }
 
 async function parseOutFrame(frame1) {
-    console.log('frame1', frame1)
-    console.log('frame1.type', frame1.type)
+    // console.log('frame1', frame1)
+    // console.log('frame1.type', frame1.type)
     const resultJson = TreeUtil.map(frame1, {
         childrenKey: 'children',
         childrenSetKey: '_children',
@@ -1942,11 +1923,10 @@ async function parseOutFrame(frame1) {
                 return await parseBoolean(node)
             }
             else if (node.type == 'INSTANCE') {
-                // return parseInstance(node, context)
-                return await parseComponent(node, context)
+                return await parseComponentOrInstance(node, context)
             }
             else if (node.type == 'COMPONENT') {
-                return await parseComponent(node, context)
+                return await parseComponentOrInstance(node, context)
             }
             
             // return {
